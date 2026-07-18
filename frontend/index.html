@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoSentinel AI | Geological & Remote Sensing Intelligence</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet Draw CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dark-mode">
+  <div id="app-container">
+    <!-- Header / Navigation Bar -->
+    <header class="glass-header">
+      <div class="brand">
+        <div class="logo-icon">🌍</div>
+        <div class="brand-text">
+          <h1>GeoSentinel <span>AI</span></h1>
+          <p>Earth Observation & Geological Intelligence</p>
+        </div>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="location-input" placeholder="Search location (e.g. Tawang, Himalayas, Ziro Valley)..." />
+        <button id="search-btn" class="btn-secondary">Search</button>
+      </div>
+      <div class="header-actions">
+        <div class="status-badge live">System Ready</div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <!-- Left Map Pane -->
+      <section class="map-section">
+        <div id="map"></div>
+        <div class="map-overlay-controls">
+          <div class="basemap-selector">
+            <span>Basemap:</span>
+            <select id="basemap-select">
+              <option value="dark">CartoDB Dark (Default)</option>
+              <option value="satellite">ESRI World Satellite</option>
+              <option value="voyager">CartoDB Voyager (Streets)</option>
+            </select>
+          </div>
+          <label class="date-selector">
+            <span>Satellite Date:</span>
+            <input type="date" id="sat-date" value="2024-06-15" />
+          </label>
+          <button id="analyze-btn" class="btn-primary" disabled>
+            <span class="btn-icon">⚡</span> Analyze AOI
+          </button>
+        </div>
+        <div class="mouse-coords-bar" id="mouse-coords">
+          Cursor Coordinates: Move mouse over map...
+        </div>
+      </section>
+
+      <!-- Right Intelligence Dashboard Pane -->
+      <aside class="dashboard-panel glass-panel">
+        <div class="panel-header">
+          <h2>Intelligence Dashboard</h2>
+          <span class="badge" id="aoi-status">No AOI Selected</span>
+        </div>
+
+        <div class="panel-content" id="panel-content">
+          <!-- Area Information -->
+          <div class="card info-card">
+            <h3>Area Information</h3>
+            <div class="info-grid">
+              <div><label>Coordinates:</label> <span id="coord-display">--</span></div>
+              <div><label>Bounding Box:</label> <span id="bbox-display">--</span></div>
+              <div><label>AOI Area:</label> <span id="area-display">-- sq km</span></div>
+              <div><label>Source:</label> <span id="source-display">Sentinel-2 (L2A)</span></div>
+              <div><label>Scene ID:</label> <span id="scene-display" style="color:var(--accent)">--</span></div>
+              <div><label>Capture Date:</label> <span id="capture-display">--</span></div>
+              <div><label>Cloud Cover:</label> <span id="cloud-display">--</span></div>
+              <div><label>Mean NDVI:</label> <span id="ndvi-display">--</span></div>
+            </div>
+          </div>
+
+          <!-- Land Cover Stats -->
+          <div class="card stats-card">
+            <h3>Land Cover Classification</h3>
+            <div id="stats-container" class="stats-list">
+              <p class="placeholder-text">Draw an Area of Interest (AOI) on the map and click Analyze to generate classification statistics.</p>
+            </div>
+          </div>
+
+          <!-- Geological Interpretation -->
+          <div class="card geology-card">
+            <h3>Geological Interpretation</h3>
+            <div id="geology-container">
+              <p class="placeholder-text">AI-assisted geological landscape interpretation will appear here after analysis.</p>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions-group">
+            <button id="report-btn" class="btn-outline" disabled>
+              📄 Download PDF Report
+            </button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Leaflet & Leaflet Draw JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <!-- Application JS -->
+  <script src="app.js"></script>
+</body>
+</html>

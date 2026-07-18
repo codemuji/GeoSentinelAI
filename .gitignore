@@ -1,0 +1,84 @@
+# ==============================================================================
+# GeoSentinel AI - Git Ignore Configuration
+# Professional exclusion standards for Python, FastAPI, & Geospatial Projects
+# ==============================================================================
+
+# Bytecompiled / Optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Virtual Environments & Package Directories
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment Variables & Security Credentials (NEVER commit secrets!)
+.env
+.env.local
+.env.production
+*.key
+*.pem
+secrets.json
+config.private.json
+
+# Local Testing, Reports, & Log Files
+*.log
+geosentinel_*.pdf
+reports/
+*.sqlite3
+*.db
+
+# Geospatial Cache & Large Raster/Vector Scratch Files
+data/cache/
+data/rasters/*.tif
+data/rasters/*.tiff
+data/rasters/*.cog
+data/vectors/*.gpkg
+data/vectors/*.shp
+data/vectors/*.shx
+data/vectors/*.dbf
+
+# IDE, Editor, & OS System Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing & Coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
