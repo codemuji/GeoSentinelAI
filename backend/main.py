@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import math
 from dotenv import load_dotenv
 
@@ -6,10 +13,11 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from shapely.geometry import shape
 from backend.services.satellite import fetch_sentinel2_data
-from backend.services.engine import run_ml_land_cover, generate_geological_interpretation
+from backend.services.engine import run_ml_land_cover, generate_geological_interpretation, get_regional_context
+from backend.services.literature import fetch_regional_literature
 
 app = FastAPI(title="GeoSentinel AI API", description="AI-powered Geological & Remote Sensing Intelligence Platform")
 
@@ -21,12 +29,22 @@ class GeoInterpretation(BaseModel):
     text: str
     confidence: float
 
+class ResearchPaper(BaseModel):
+    title: str
+    authors: List[str] = []
+    year: Optional[int] = None
+    venue: Optional[str] = None
+    doi_url: Optional[str] = None
+    is_open_access: bool = False
+    oa_url: Optional[str] = None
+
 class AnalysisResponse(BaseModel):
     land_cover: Dict[str, float]
     interpretations: List[GeoInterpretation]
     aoi_size_km2: float
     satellite_info: Dict[str, Any]
     cloud_warning: bool = False
+    literature: List[ResearchPaper] = []
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_aoi(request: AnalysisRequest):
@@ -55,26 +73,34 @@ async def analyze_aoi(request: AnalysisRequest):
     land_cover = run_ml_land_cover(sat_data)
     
     # 4. Level 3 AI: Generative AI (Gemini API) / Rule Engine Geomorphological Interpretation
-    raw_interpretations = generate_geological_interpretation(land_cover, sat_data, sat_data.get("bbox", bounds))
+    effective_bbox = sat_data.get("bbox", bounds)
+    raw_interpretations = generate_geological_interpretation(land_cover, sat_data, effective_bbox)
     
     interpretations = [
         GeoInterpretation(text=item["text"], confidence=float(item.get("confidence", 0.85)))
         for item in raw_interpretations
     ]
     
+    # 5. Peer-Reviewed Geological Literature (OpenAlex)
+    regional_context = get_regional_context(effective_bbox)
+    papers_data = fetch_regional_literature(regional_context, limit=4)
+    literature = [ResearchPaper(**p) for p in papers_data]
+    
     cloud_cover = float(sat_data.get("cloud_cover", 0.0))
     cloud_warning = cloud_cover > 30.0
+    client_sat_info = {k: v for k, v in sat_data.items() if k != "bands"}
 
     return AnalysisResponse(
         land_cover=land_cover,
         interpretations=interpretations,
         aoi_size_km2=aoi_size_km2,
-        satellite_info=sat_data,
-        cloud_warning=cloud_warning
+        satellite_info=client_sat_info,
+        cloud_warning=cloud_warning,
+        literature=literature
     )
 
 # Serve the static frontend files directly
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory=str(ROOT_DIR / "frontend"), html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

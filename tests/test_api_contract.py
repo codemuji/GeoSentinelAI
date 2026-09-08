@@ -61,6 +61,10 @@ def test_analyze_endpoint_contract(mock_aoi_geojson, monkeypatch):
     assert "cloud_warning" in data
     assert data["cloud_warning"] is False
 
+    # 6. Assert literature list is present and structured
+    assert "literature" in data
+    assert isinstance(data["literature"], list)
+
 def test_analyze_endpoint_cloud_warning_triggered(mock_aoi_geojson, monkeypatch):
     """Verifies that cloud_warning is True when cloud_cover > 30%."""
     mock_cloudy_response = {

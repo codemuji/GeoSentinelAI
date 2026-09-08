@@ -88,8 +88,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
   document.getElementById('analyze-btn').disabled = false;
 });
 
+let latestAnalysisData = null;
+
 map.on(L.Draw.Event.DELETED, function () {
   activeLayer = null;
+  latestAnalysisData = null;
   document.getElementById('coord-display').textContent = '--';
   document.getElementById('bbox-display').textContent = '--';
   document.getElementById('area-display').textContent = '-- sq km';
@@ -97,6 +100,8 @@ map.on(L.Draw.Event.DELETED, function () {
   document.getElementById('aoi-status').style.color = 'var(--text-secondary)';
   document.getElementById('analyze-btn').disabled = true;
   document.getElementById('report-btn').disabled = true;
+  const headerReportBtn = document.getElementById('header-report-btn');
+  if (headerReportBtn) headerReportBtn.style.display = 'none';
   const warningBadge = document.getElementById('cloud-warning-badge');
   if (warningBadge) warningBadge.style.display = 'none';
 });
@@ -124,9 +129,49 @@ document.getElementById('location-input').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') document.getElementById('search-btn').click();
 });
 
-// Print-styled PDF Export trigger
-document.getElementById('report-btn').addEventListener('click', () => {
+// Report Modal Controls
+function openReportModal() {
+  if (!latestAnalysisData) {
+    alert('Please draw an Area of Interest on the map and click Analyze AOI first.');
+    return;
+  }
+  populateReportModal(latestAnalysisData);
+  const modal = document.getElementById('report-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
+  }
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('report-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+  }
+}
+
+document.getElementById('report-btn').addEventListener('click', openReportModal);
+const headerReportBtn = document.getElementById('header-report-btn');
+if (headerReportBtn) headerReportBtn.addEventListener('click', openReportModal);
+
+const modalCloseBtn = document.getElementById('modal-close-btn');
+if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeReportModal);
+
+const modalPrintBtn = document.getElementById('modal-print-btn');
+if (modalPrintBtn) modalPrintBtn.addEventListener('click', () => {
   window.print();
+});
+
+const reportModal = document.getElementById('report-modal');
+if (reportModal) {
+  reportModal.addEventListener('click', (e) => {
+    if (e.target.id === 'report-modal') closeReportModal();
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeReportModal();
 });
 
 // Analyze button handler - calls Python FastAPI endpoint
@@ -147,12 +192,21 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
       body: JSON.stringify({ aoi: geojson, date: date })
     });
     
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server returned HTTP ${res.status}`);
+    }
+
     const data = await res.json();
+    latestAnalysisData = data;
     renderResults(data);
+
     document.getElementById('report-btn').disabled = false;
+    const headerBtn = document.getElementById('header-report-btn');
+    if (headerBtn) headerBtn.style.display = 'inline-block';
   } catch (err) {
     console.error('Analysis failed:', err);
-    alert('Analysis failed or backend is offline. Make sure the Python server is running!');
+    alert(`Analysis failed: ${err.message || 'Make sure the Python server is running!'}`);
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span>⚡</span> Analyze AOI';
@@ -231,4 +285,139 @@ function renderResults(data) {
       <div class="confidence">Confidence: ${(item.confidence * 100).toFixed(0)}% • AI-assisted interpretation</div>
     </div>
   `).join('');
+
+  // Render Regional Geological Literature
+  const literatureContainer = document.getElementById('literature-container');
+  if (literatureContainer) {
+    if (data.literature && data.literature.length > 0) {
+      literatureContainer.innerHTML = data.literature.map(paper => {
+        const authorsText = paper.authors && paper.authors.length > 0 ? paper.authors.join(', ') : 'Unknown authors';
+        const yearText = paper.year ? `(${paper.year})` : '';
+        const venueText = paper.venue || 'Geological Survey';
+        const oaBadge = paper.is_open_access ? '<span class="oa-badge">Open Access</span>' : '';
+        const link = paper.doi_url || paper.oa_url || '#';
+        const targetAttr = link !== '#' ? 'target="_blank" rel="noopener noreferrer"' : '';
+
+        return `
+          <div class="literature-item">
+            <a href="${link}" ${targetAttr} class="literature-title">${paper.title} ↗</a>
+            <div class="literature-meta">
+              <span>${authorsText} ${yearText}</span>
+              <span>•</span>
+              <span><em>${venueText}</em></span>
+              ${oaBadge}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      literatureContainer.innerHTML = '<p class="placeholder-text">No indexed geological papers found for this exact geographic sector.</p>';
+    }
+  }
+}
+
+function populateReportModal(data) {
+  const timestampEl = document.getElementById('report-timestamp');
+  if (timestampEl) {
+    timestampEl.textContent = `Mission Date: ${new Date().toLocaleDateString()} | Time: ${new Date().toLocaleTimeString()} (Local)`;
+  }
+
+  const sat = data.satellite_info || {};
+  const landCover = data.land_cover || {};
+  const interpretations = data.interpretations || [];
+  const literature = data.literature || [];
+
+  const colors = {
+    'Forest': '#10b981',
+    'Agriculture': '#eab308',
+    'Water': '#3b82f6',
+    'Bare Soil': '#a855f7',
+    'Urban': '#ef4444'
+  };
+
+  const coords = document.getElementById('coord-display')?.textContent || '--';
+  const bbox = document.getElementById('bbox-display')?.textContent || '--';
+  const area = data.aoi_size_km2 ? `${data.aoi_size_km2} sq km` : (document.getElementById('area-display')?.textContent || '--');
+
+  const distBars = Object.entries(landCover).map(([cls, pct]) => `
+    <div class="report-distribution-seg" style="width: ${pct}%; background: ${colors[cls] || '#00f0ff'};" title="${cls}: ${pct}%"></div>
+  `).join('');
+
+  const distLegend = Object.entries(landCover).map(([cls, pct]) => `
+    <div class="report-legend-item">
+      <span class="report-legend-dot" style="background: ${colors[cls] || '#00f0ff'};"></span>
+      <span>${cls}: <strong>${pct}%</strong></span>
+    </div>
+  `).join('');
+
+  const interpHtml = interpretations.length > 0 ? interpretations.map(item => `
+    <div class="report-callout">
+      <div>${item.text}</div>
+      <div class="confidence" style="margin-top:0.3rem;">Confidence: ${(item.confidence * 100).toFixed(0)}% • AI Remote Sensing & Geomorphological Synthesis</div>
+    </div>
+  `).join('') : '<p class="placeholder-text">No interpretations available.</p>';
+
+  const litHtml = literature.length > 0 ? literature.map(paper => {
+    const authors = paper.authors && paper.authors.length > 0 ? paper.authors.join(', ') : 'Unknown Authors';
+    const year = paper.year ? `(${paper.year})` : '';
+    const venue = paper.venue || 'Academic Geological Publication';
+    const oaBadge = paper.is_open_access ? '<span class="oa-badge">Open Access</span>' : '';
+    const link = paper.doi_url || paper.oa_url || '#';
+    const target = link !== '#' ? 'target="_blank" rel="noopener noreferrer"' : '';
+
+    return `
+      <div class="literature-item">
+        <a href="${link}" ${target} class="literature-title">${paper.title} ↗</a>
+        <div class="literature-meta">
+          <span>${authors} ${year}</span>
+          <span>•</span>
+          <span><em>${venue}</em></span>
+          ${oaBadge}
+        </div>
+      </div>
+    `;
+  }).join('') : '<p class="placeholder-text">No indexed geological papers found for this sector.</p>';
+
+  const reportBody = document.getElementById('report-body');
+  if (reportBody) {
+    reportBody.innerHTML = `
+      <div class="report-section">
+        <h3>1. Mission & Area Specification</h3>
+        <div class="report-grid-2">
+          <div><label>Centroid Coordinates:</label> <span>${coords}</span></div>
+          <div><label>AOI Surface Area:</label> <span>${area}</span></div>
+          <div><label>Bounding Box (WGS84):</label> <span>${bbox}</span></div>
+          <div><label>Imagery Platform:</label> <span>${sat.source || 'Sentinel-2 L2A'}</span></div>
+          <div><label>Acquisition Tile ID:</label> <span style="font-family:monospace; color:var(--accent);">${sat.scene_id || '--'}</span></div>
+          <div><label>Acquisition Date:</label> <span>${sat.scene_date || '--'}</span></div>
+          <div><label>Cloud / Atmospheric Cover:</label> <span>${sat.cloud_cover || 0}%</span></div>
+          <div><label>Mean Spectral NDVI:</label> <span>${sat.ndvi_mean || '--'}</span></div>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <h3>2. Biophysical Land Cover Distribution</h3>
+        <div class="report-distribution-bar">
+          ${distBars}
+        </div>
+        <div class="report-legend">
+          ${distLegend}
+        </div>
+      </div>
+
+      <div class="report-section">
+        <h3>3. Geomorphological & Structural Landscape Assessment</h3>
+        ${interpHtml}
+      </div>
+
+      <div class="report-section">
+        <h3>4. Ground-Truth Academic Research & Field Surveys (OpenAlex)</h3>
+        ${litHtml}
+      </div>
+
+      <div class="report-footer-notice">
+        GeoSentinel AI Tactical Platform • Sentinel-2 L2A BOA Multispectral Analytics • Microsoft Planetary Computer STAC
+      </div>
+    `;
+  }
 }

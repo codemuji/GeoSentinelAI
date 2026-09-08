@@ -35,3 +35,7 @@ _Avoid_: Weather error, image obscured
 **Regional Context**:
 Geographic and physiographic locality data (e.g., orogenic belts, river basins, administrative districts) associated with an AOI.
 _Avoid_: Address, geocode text
+
+**Regional Literature**:
+Peer-reviewed academic research papers and geological surveys indexed by OpenAlex associated with the regional context of an AOI.
+_Avoid_: Web search results, blog posts, news articles

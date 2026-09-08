@@ -12,10 +12,13 @@ except ImportError:
 
 def compute_spectral_indices(bands: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
     """Computes NDVI, NDWI, and NDBI arrays from calibrated Sentinel-2 bands."""
-    green = bands["B03"].astype(np.float32)
-    red = bands["B04"].astype(np.float32)
-    nir = bands["B08"].astype(np.float32)
-    swir = bands.get("B11", red).astype(np.float32)
+    min_rows = min(bands[b].shape[0] for b in ["B03", "B04", "B08"] if b in bands)
+    min_cols = min(bands[b].shape[1] for b in ["B03", "B04", "B08"] if b in bands)
+
+    green = bands["B03"][:min_rows, :min_cols].astype(np.float32)
+    red = bands["B04"][:min_rows, :min_cols].astype(np.float32)
+    nir = bands["B08"][:min_rows, :min_cols].astype(np.float32)
+    swir = bands.get("B11", red)[:min_rows, :min_cols].astype(np.float32)
 
     ndvi = (nir - red) / (nir + red + 1e-6)
     ndwi = (green - nir) / (green + nir + 1e-6)
@@ -31,8 +34,8 @@ def classify_pixels(indices: Dict[str, np.ndarray], bands: Dict[str, np.ndarray]
     ndvi = indices["ndvi"]
     ndwi = indices["ndwi"]
     ndbi = indices["ndbi"]
-    red = bands["B04"]
-    nir = bands["B08"]
+    red = bands["B04"][:ndvi.shape[0], :ndvi.shape[1]]
+    nir = bands["B08"][:ndvi.shape[0], :ndvi.shape[1]]
 
     classified = np.full(ndvi.shape, 4, dtype=np.int32)
 

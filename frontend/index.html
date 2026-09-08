@@ -67,6 +67,7 @@
         <div class="panel-header">
           <h2>Intelligence Dashboard</h2>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="header-report-btn" class="badge-btn" style="display: none;">📄 View Report</button>
             <span class="badge warning-badge" id="cloud-warning-badge" style="display: none;">⚠️ Cloud Warning</span>
             <span class="badge" id="aoi-status">No AOI Selected</span>
           </div>
@@ -104,15 +105,42 @@
             </div>
           </div>
 
+          <!-- Ground-Truth Geological Literature -->
+          <div class="card literature-card">
+            <h3>Regional Geological Research (OpenAlex)</h3>
+            <div id="literature-container">
+              <p class="placeholder-text">Peer-reviewed geological surveys and literature will appear here after analysis.</p>
+            </div>
+          </div>
+
           <!-- Actions -->
           <div class="actions-group">
             <button id="report-btn" class="btn-outline" disabled>
-              📄 Download PDF Report
+              📄 View & Download PDF Report
             </button>
           </div>
         </div>
       </aside>
     </main>
+  </div>
+
+  <!-- Modal: GEOINT Intelligence Report -->
+  <div id="report-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="report-title-group">
+          <h2>🌍 GeoSentinel AI — Tactical Intelligence Report</h2>
+          <span class="report-timestamp" id="report-timestamp">--</span>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-print-btn" class="btn-primary">🖨️ Print / Save PDF</button>
+          <button id="modal-close-btn" class="btn-secondary">✕ Close</button>
+        </div>
+      </div>
+      <div class="modal-body" id="report-body">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
   </div>
 
   <!-- Leaflet & Leaflet Draw JS -->

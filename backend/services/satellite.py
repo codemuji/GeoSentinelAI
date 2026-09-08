@@ -60,6 +60,10 @@ def stream_sentinel2_bands_concurrently(
         target_shape = bands["B04"].shape
         if bands["B11"].shape != target_shape:
             b11 = np.repeat(np.repeat(bands["B11"], 2, axis=0), 2, axis=1)
+            if b11.shape[0] < target_shape[0] or b11.shape[1] < target_shape[1]:
+                pad_h = max(0, target_shape[0] - b11.shape[0])
+                pad_w = max(0, target_shape[1] - b11.shape[1])
+                b11 = np.pad(b11, ((0, pad_h), (0, pad_w)), mode="edge")
             bands["B11"] = b11[:target_shape[0], :target_shape[1]]
             
     return bands

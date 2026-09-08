@@ -10,8 +10,7 @@ __pycache__/
 *.so
 *.pyd
 .agents
-
-
+docs
 # Virtual Environments & Package Directories
 venv/
 .venv/

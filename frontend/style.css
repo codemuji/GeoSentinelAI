@@ -373,13 +373,303 @@ button {
   border: 1px solid rgba(245, 158, 11, 0.4) !important;
 }
 
+/* Regional Geological Literature Items */
+.literature-item {
+  font-size: 0.83rem;
+  line-height: 1.35;
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.literature-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.literature-title {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.35rem;
+  line-height: 1.3;
+}
+
+.literature-title:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.literature-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.oa-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 0.08rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* Header Report Action Button */
+.badge-btn {
+  background: var(--accent-gradient);
+  border: none;
+  color: #000000;
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.badge-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.5);
+}
+
+/* Intelligence Report Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 10, 20, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.modal-card {
+  background: #0b1323;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 240, 255, 0.15);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.report-title-group h2 {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.report-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Report Internal Sections */
+.report-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 1.2rem;
+}
+
+.report-section h3 {
+  font-family: var(--font-heading);
+  font-size: 0.92rem;
+  color: var(--accent);
+  margin-bottom: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.4rem;
+}
+
+.report-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+}
+
+.report-grid-2 div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+}
+
+.report-grid-2 label {
+  color: var(--text-secondary);
+}
+
+.report-distribution-bar {
+  display: flex;
+  height: 18px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 0.75rem 0 0.5rem 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.report-distribution-seg {
+  height: 100%;
+}
+
+.report-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.report-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.report-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.report-callout {
+  padding: 0.65rem 0.85rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(0, 240, 255, 0.04);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-bottom: 0.65rem;
+}
+
+.report-footer-notice {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
 /* Dedicated Print Layout for PDF Report Generation */
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #0f172a !important;
     overflow: visible !important;
     height: auto !important;
+  }
+
+  body.modal-open #app-container {
+    display: none !important;
+  }
+
+  body.modal-open #report-modal {
+    display: block !important;
+    position: static !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.modal-open .modal-card {
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    color: #0f172a !important;
+  }
+
+  body.modal-open .modal-actions {
+    display: none !important;
+  }
+
+  body.modal-open .modal-header {
+    border-bottom: 2px solid #0f172a !important;
+    color: #0f172a !important;
+    padding: 0 0 1rem 0 !important;
+  }
+
+  body.modal-open .report-title-group h2 {
+    color: #0f172a !important;
+  }
+
+  body.modal-open .report-section {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    break-inside: avoid;
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
+  }
+
+  body.modal-open .report-section h3 {
+    color: #0369a1 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+
+  body.modal-open .report-grid-2 label,
+  body.modal-open .report-legend,
+  body.modal-open .report-timestamp,
+  body.modal-open .report-footer-notice {
+    color: #475569 !important;
+  }
+
+  body.modal-open .report-callout {
+    background: #f0f9ff !important;
+    border-left: 3px solid #0284c7 !important;
+    color: #0f172a !important;
   }
 
   .glass-header .search-bar,
@@ -441,6 +731,27 @@ button {
     background: #ffffff !important;
     border-left: 3px solid #0284c7 !important;
     color: #0f172a !important;
+  }
+
+  .literature-item {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    break-inside: avoid;
+  }
+
+  .literature-title {
+    color: #0369a1 !important;
+  }
+
+  .literature-meta {
+    color: #475569 !important;
+  }
+
+  .oa-badge {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border-color: #86efac !important;
   }
 }
 

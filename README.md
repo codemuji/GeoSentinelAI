@@ -27,6 +27,7 @@ Instead, analysts can draw any **Area of Interest (AOI)** across the globe on an
 1. **Real-time STAC Catalog Discovery**: Queries Microsoft Planetary Computer for open Sentinel-2 Level-2A surface reflectance data.
 2. **Bandwidth-Optimized COG Extraction**: Performs HTTP range-requests on **Cloud Optimized GeoTIFFs (COGs)** to extract spectral bands ($B_{04}$ Red and $B_{08}$ Near-Infrared) strictly within the AOI boundary.
 3. **Multi-Tiered AI Analysis**: Combines spectral physics index computations, local machine learning (**Random Forest ensemble classification**), and **Generative AI geomorphological reasoning** to deliver comprehensive landscape assessments with quantified confidence metrics.
+4. **Ground-Truth Geological Research Ingestion**: Automatically queries the **OpenAlex** open catalog for the 4 most recent peer-reviewed geological, geotechnical, and remote sensing publications matching the AOI, surfacing titles, authors, DOIs, and Open Access PDF links.
 
 ---
 
