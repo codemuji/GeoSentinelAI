@@ -1,3 +1,4 @@
+import math
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -39,7 +40,6 @@ async def analyze_aoi(request: AnalysisRequest):
         lat_span = bounds[3] - bounds[1]
         lon_span = bounds[2] - bounds[0]
         mean_lat = (bounds[1] + bounds[3]) / 2.0
-        import math
         km_lat = lat_span * 111.0
         km_lon = lon_span * 111.0 * math.cos(math.radians(mean_lat))
         aoi_size_km2 = round(abs(km_lat * km_lon), 2) if km_lat * km_lon > 0 else 14.5

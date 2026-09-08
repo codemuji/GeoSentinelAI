@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Dependency Modernization and Offline Test Harness
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Query Planetary Computer STAC for Sentinel-2 L2A scenes intersecting the drawn Area of Interest within a ±30-day window around the selected date.
-- [ ] Filter scenes by cloud cover to select the cleanest available acquisition, and flag a `cloud_warning: true` indicator when cloud cover exceeds 30%.
-- [ ] Dynamically reproject the GeoJSON WGS84 bounding box coordinates into the native UTM coordinate reference system of the targeted Sentinel-2 scene.
-- [ ] Stream only the clipped pixel window using HTTP range requests concurrently across Green (B03), Red (B04), NIR (B08), and SWIR (B11) bands via a thread pool.
-- [ ] Gracefully handle catalog or network exceptions with informative error responses rather than unhandled server crashes.
+- [x] Query Planetary Computer STAC for Sentinel-2 L2A scenes intersecting the drawn Area of Interest within a ±30-day window around the selected date.
+- [x] Filter scenes by cloud cover to select the cleanest available acquisition, and flag a `cloud_warning: true` indicator when cloud cover exceeds 30%.
+- [x] Dynamically reproject the GeoJSON WGS84 bounding box coordinates into the native UTM coordinate reference system of the targeted Sentinel-2 scene.
+- [x] Stream only the clipped pixel window using HTTP range requests concurrently across Green (B03), Red (B04), NIR (B08), and SWIR (B11) bands via a thread pool.
+- [x] Gracefully handle catalog or network exceptions with informative error responses rather than unhandled server crashes.
