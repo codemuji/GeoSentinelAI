@@ -10,11 +10,79 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
+def compute_spectral_indices(bands: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+    """Computes NDVI, NDWI, and NDBI arrays from calibrated Sentinel-2 bands."""
+    green = bands["B03"].astype(np.float32)
+    red = bands["B04"].astype(np.float32)
+    nir = bands["B08"].astype(np.float32)
+    swir = bands.get("B11", red).astype(np.float32)
+
+    ndvi = (nir - red) / (nir + red + 1e-6)
+    ndwi = (green - nir) / (green + nir + 1e-6)
+    ndbi = (swir - nir) / (swir + nir + 1e-6)
+
+    return {"ndvi": ndvi, "ndwi": ndwi, "ndbi": ndbi}
+
+def classify_pixels(indices: Dict[str, np.ndarray], bands: Dict[str, np.ndarray]) -> np.ndarray:
+    """
+    Classifies pixels into 5 biophysical land cover classes:
+    0: Water, 1: Forest, 2: Agriculture, 3: Urban, 4: Bare Soil
+    """
+    ndvi = indices["ndvi"]
+    ndwi = indices["ndwi"]
+    ndbi = indices["ndbi"]
+    red = bands["B04"]
+    nir = bands["B08"]
+
+    classified = np.full(ndvi.shape, 4, dtype=np.int32)
+
+    water_mask = (ndwi > 0.05) | ((ndvi < 0.0) & (nir < 0.10))
+    classified[water_mask] = 0
+
+    forest_mask = (ndvi > 0.55) & (~water_mask)
+    classified[forest_mask] = 1
+
+    agri_mask = (ndvi >= 0.20) & (ndvi <= 0.55) & (~water_mask)
+    classified[agri_mask] = 2
+
+    urban_mask = ((ndbi > 0.0) | ((red > 0.18) & (ndvi < 0.20))) & (~water_mask) & (~forest_mask) & (~agri_mask)
+    classified[urban_mask] = 3
+
+    return classified
+
+def calculate_land_cover_percentages(classified: np.ndarray) -> Dict[str, float]:
+    """Calculates class percentage distributions summing to exactly 100%."""
+    total = max(1, classified.size)
+    counts = np.bincount(classified.ravel(), minlength=5)
+    pcts = [round(float(counts[i] / total) * 100.0, 1) for i in range(5)]
+    
+    current_sum = round(sum(pcts), 1)
+    diff = round(100.0 - current_sum, 1)
+    if diff != 0.0:
+        max_idx = int(np.argmax(pcts))
+        pcts[max_idx] = round(pcts[max_idx] + diff, 1)
+
+    return {
+        "Forest": pcts[1],
+        "Agriculture": pcts[2],
+        "Water": pcts[0],
+        "Bare Soil": pcts[4],
+        "Urban": pcts[3]
+    }
+
 def run_ml_land_cover(sat_data: Dict[str, Any]) -> Dict[str, float]:
     """
     Multispectral Land Cover Classification.
-    Computes class percentages based on spectral indices and band distributions.
+    Computes exact pixel classification if multi-band arrays are present,
+    otherwise uses spectral heuristic fallback.
     """
+    bands = sat_data.get("bands", {})
+    required = ["B03", "B04", "B08"]
+    if all(b in bands and isinstance(bands[b], np.ndarray) and bands[b].size > 0 for b in required):
+        indices = compute_spectral_indices(bands)
+        classified = classify_pixels(indices, bands)
+        return calculate_land_cover_percentages(classified)
+
     ndvi_mean = float(sat_data.get("ndvi_mean", 0.35))
     stats = sat_data.get("spectral_stats", {})
     veg_ratio = float(stats.get("vegetation_ratio", 0.4))
