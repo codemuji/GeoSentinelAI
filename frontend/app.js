@@ -30,13 +30,11 @@ document.getElementById('basemap-select').addEventListener('change', (e) => {
   currentBasemap.addTo(map);
 });
 
-// Live Mouse Coordinate Readout (Unprojecting screen pixels to WGS84 EPSG:4326 Lat/Lng)
+// Live Mouse Coordinate Readout (WGS84 Lat/Lng)
 map.on('mousemove', (e) => {
-  const lat = e.latlng.lat.toFixed(4);
-  const lng = e.latlng.lng.toFixed(4);
-  const latDir = lat >= 0 ? 'N' : 'S';
-  const lngDir = lng >= 0 ? 'E' : 'W';
-  document.getElementById('mouse-coords').textContent = `Cursor Coordinates: ${Math.abs(lat)}° ${latDir}, ${Math.abs(lng)}° ${lngDir}`;
+  const { lat, lng } = e.latlng;
+  document.getElementById('mouse-coords').textContent =
+    `Cursor Coordinates: ${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
 });
 
 // Add zoom controls to bottom left
@@ -99,6 +97,8 @@ map.on(L.Draw.Event.DELETED, function () {
   document.getElementById('aoi-status').style.color = 'var(--text-secondary)';
   document.getElementById('analyze-btn').disabled = true;
   document.getElementById('report-btn').disabled = true;
+  const warningBadge = document.getElementById('cloud-warning-badge');
+  if (warningBadge) warningBadge.style.display = 'none';
 });
 
 // Search functionality using free Nominatim API
@@ -122,6 +122,11 @@ document.getElementById('search-btn').addEventListener('click', async () => {
 
 document.getElementById('location-input').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') document.getElementById('search-btn').click();
+});
+
+// Print-styled PDF Export trigger
+document.getElementById('report-btn').addEventListener('click', () => {
+  window.print();
 });
 
 // Analyze button handler - calls Python FastAPI endpoint
@@ -155,7 +160,7 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
 });
 
 function renderResults(data) {
-  // Populate Real Satellite Metadata if available
+  // Populate Satellite Metadata
   if (data.satellite_info) {
     document.getElementById('scene-display').textContent = data.satellite_info.scene_id || '--';
     document.getElementById('capture-display').textContent = data.satellite_info.scene_date || '--';
@@ -164,9 +169,16 @@ function renderResults(data) {
     document.getElementById('source-display').textContent = data.satellite_info.source || 'Sentinel-2 L2A';
   }
 
-  // Render Land Cover Stats
-  const statsContainer = document.getElementById('stats-container');
-  statsContainer.innerHTML = '';
+  // Cloud Warning Advisory Badge
+  const warningBadge = document.getElementById('cloud-warning-badge');
+  if (warningBadge) {
+    if (data.cloud_warning) {
+      warningBadge.style.display = 'inline-block';
+      warningBadge.textContent = `⚠️ Cloud Warning (${data.satellite_info.cloud_cover || 0}%)`;
+    } else {
+      warningBadge.style.display = 'none';
+    }
+  }
 
   const colors = {
     'Forest': '#10b981',
@@ -176,32 +188,47 @@ function renderResults(data) {
     'Urban': '#ef4444'
   };
 
-  for (const [class_name, percent] of Object.entries(data.land_cover)) {
-    const div = document.createElement('div');
-    div.className = 'stat-item';
-    div.innerHTML = `
+  // Thematic Styling for AOI on Map
+  if (data.land_cover && Object.keys(data.land_cover).length > 0) {
+    const dominantEntry = Object.entries(data.land_cover).sort((a, b) => b[1] - a[1])[0];
+    const dominantClass = dominantEntry[0];
+    const dominantColor = colors[dominantClass] || '#00f0ff';
+
+    if (activeLayer && activeLayer.setStyle) {
+      activeLayer.setStyle({
+        color: dominantColor,
+        fillColor: dominantColor,
+        fillOpacity: 0.45,
+        weight: 3
+      });
+      activeLayer.bindPopup(
+        `<b>Dominant Land Cover:</b> ${dominantClass} (${dominantEntry[1]}%)<br>` +
+        `<b>AOI Area:</b> ${data.aoi_size_km2} sq km<br>` +
+        `<b>Scene:</b> ${data.satellite_info.scene_id || 'Sentinel-2'}`
+      ).openPopup();
+    }
+  }
+
+  // Render Land Cover Stats
+  const statsContainer = document.getElementById('stats-container');
+  statsContainer.innerHTML = Object.entries(data.land_cover).map(([cls, pct]) => `
+    <div class="stat-item">
       <div class="stat-label">
-        <span>${class_name}</span>
-        <span>${percent}%</span>
+        <span>${cls}</span>
+        <span>${pct}%</span>
       </div>
       <div class="stat-bar">
-        <div class="stat-fill" style="width: ${percent}%; background: ${colors[class_name] || '#00f0ff'};"></div>
+        <div class="stat-fill" style="width: ${pct}%; background: ${colors[cls] || '#00f0ff'};"></div>
       </div>
-    `;
-    statsContainer.appendChild(div);
-  }
+    </div>
+  `).join('');
 
   // Render Geological Interpretations
   const geologyContainer = document.getElementById('geology-container');
-  geologyContainer.innerHTML = '';
-
-  data.interpretations.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'interpretation-item';
-    div.innerHTML = `
+  geologyContainer.innerHTML = data.interpretations.map(item => `
+    <div class="interpretation-item">
       <div>${item.text}</div>
       <div class="confidence">Confidence: ${(item.confidence * 100).toFixed(0)}% • AI-assisted interpretation</div>
-    `;
-    geologyContainer.appendChild(div);
-  });
+    </div>
+  `).join('');
 }
