@@ -103,30 +103,156 @@ def run_ml_land_cover(sat_data: Dict[str, Any]) -> Dict[str, float]:
 
 
 
+def get_regional_context(bbox: List[float]) -> str:
+    """
+    Reverse-geocodes the centroid of the AOI to obtain physiographic and regional descriptors.
+    Falls back to coordinate bounds heuristics when offline.
+    """
+    lat = (bbox[1] + bbox[3]) / 2.0
+    lon = (bbox[0] + bbox[2]) / 2.0
+    
+    try:
+        import urllib.request
+        url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
+        req = urllib.request.Request(url, headers={"User-Agent": "GeoSentinelAI/1.0"})
+        with urllib.request.urlopen(req, timeout=1.5) as response:
+            data = json.loads(response.read().decode())
+            addr = data.get("address", {})
+            parts = [addr.get("county"), addr.get("state"), addr.get("country")]
+            valid_parts = [p for p in parts if p]
+            if valid_parts:
+                return ", ".join(valid_parts)
+    except Exception:
+        pass
+
+    # Heuristic regional classification based on physiographic bounds
+    if 26.0 <= lat <= 36.0 and 73.0 <= lon <= 98.0:
+        return "Eastern Himalayas & Tibetan Orogenic Belt"
+    elif 8.0 <= lat <= 21.0 and 73.0 <= lon <= 77.5:
+        return "Western Ghats Escarpment"
+    elif 15.0 <= lat <= 25.0 and 73.0 <= lon <= 85.0:
+        return "Deccan Traps Continental Flood Basalt Plateau"
+    elif 23.0 <= lat <= 30.0 and 75.0 <= lon <= 90.0:
+        return "Indo-Gangetic Alluvial Foreland Basin"
+    else:
+        lat_dir = "N" if lat >= 0 else "S"
+        lon_dir = "E" if lon >= 0 else "W"
+        return f"Terrain Sector ({abs(lat):.2f}°{lat_dir}, {abs(lon):.2f}°{lon_dir})"
+
+def generate_dynamic_geomorphology_rules(
+    land_cover: Dict[str, float],
+    sat_data: Dict[str, Any],
+    regional_context: str
+) -> List[Dict[str, Any]]:
+    """
+    Dynamic Geomorphological Rule Engine.
+    Synthesizes bedrock exposure, surface weathering, and drainage pattern reasoning
+    based on computed multispectral ratios and regional physiography.
+    """
+    ndvi = float(sat_data.get("ndvi_mean", 0.35))
+    bare = float(land_cover.get("Bare Soil", 0.0))
+    forest = float(land_cover.get("Forest", 0.0))
+    water = float(land_cover.get("Water", 0.0))
+    agri = float(land_cover.get("Agriculture", 0.0))
+    urban = float(land_cover.get("Urban", 0.0))
+
+    # Statement 1: Bedrock & Lithology exposure
+    if bare > 40.0:
+        interp_1 = (
+            f"Widespread exposed barren surface ({bare:.1f}%) in {regional_context} indicates active mechanical "
+            f"weathering and prominent bedrock exposure with minimal regolith development."
+        )
+        conf_1 = 0.88
+    elif forest > 50.0:
+        interp_1 = (
+            f"Dense vegetative canopy (NDVI {ndvi:.2f}, {forest:.1f}% forest) across {regional_context} strongly "
+            f"obscures underlying bedrock lithology and structural fracture lines."
+        )
+        conf_1 = 0.85
+    elif urban > 30.0:
+        interp_1 = (
+            f"High urban built-up density ({urban:.1f}%) has substantially modified natural topography and "
+            f"engineered slope morphology across {regional_context}."
+        )
+        conf_1 = 0.82
+    else:
+        interp_1 = (
+            f"Mixed agricultural and vegetative cover ({agri + forest:.1f}%) in {regional_context} reflects "
+            f"moderately developed soil horizons overlying consolidated strata."
+        )
+        conf_1 = 0.80
+
+    # Statement 2: Fluvial / Surface processes
+    if water > 20.0:
+        interp_2 = (
+            f"Significant surface water presence ({water:.1f}%) suggests active fluvial dynamics, alluvial floodplain "
+            f"deposition, and structural river channel meandering."
+        )
+        conf_2 = 0.86
+    elif bare > 30.0:
+        interp_2 = (
+            f"Exposed slopes and barren margins ({bare:.1f}%) indicate susceptibility to mass wasting, slope wash, "
+            f"and high-energy gravitational sediment transport."
+        )
+        conf_2 = 0.83
+    else:
+        interp_2 = (
+            f"Surface weathering and erosional processes are mediated by root binding across {forest + agri:.1f}% "
+            f"vegetative mantle, stabilizing steep gradient slopes."
+        )
+        conf_2 = 0.79
+
+    # Statement 3: Structural & Drainage pattern
+    if water > 10.0:
+        interp_3 = (
+            f"Linear drainage corridors adjacent to open water ({water:.1f}%) exhibit structural control along fault "
+            f"zones or joint-aligned valley systems."
+        )
+        conf_3 = 0.81
+    elif bare > 25.0:
+        interp_3 = (
+            f"Exposed crests and lineaments indicate differential weathering along resistant lithological units "
+            f"within {regional_context}."
+        )
+        conf_3 = 0.77
+    else:
+        interp_3 = (
+            f"Sub-dendritic drainage networks reflect homogeneous substrate resistance under humid sub-tropical to "
+            f"montane climate regimes."
+        )
+        conf_3 = 0.76
+
+    return [
+        {"text": interp_1, "confidence": conf_1},
+        {"text": interp_2, "confidence": conf_2},
+        {"text": interp_3, "confidence": conf_3}
+    ]
+
 def generate_geological_interpretation(
     land_cover: Dict[str, float],
     sat_data: Dict[str, Any],
     bbox: List[float]
 ) -> List[Dict[str, Any]]:
     """
-    Level 3 AI: Generative AI (Google Gemini API) Geological Expert.
-    Checks for GEMINI_API_KEY/GOOGLE_API_KEY; if present, prompts Gemini for professional geomorphology report.
-    Otherwise falls back to Level 1 Physics Rule Engine.
+    Hybrid Geological Intelligence Engine.
+    Uses Gemini when GEMINI_API_KEY is configured with structured JSON schema,
+    falling back to the dynamic geomorphology rule engine when offline or unauthenticated.
     """
+    regional_context = get_regional_context(bbox)
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     
     if GENAI_AVAILABLE and api_key:
         try:
             client = genai.Client(api_key=api_key)
-            prompt = f"""
-You are a Senior Exploration Geologist and Remote Sensing Scientist.
-Analyze the following Earth Observation data for a selected Area of Interest (AOI):
+            prompt = f"""You are a Senior Exploration Geologist and Remote Sensing Scientist.
+Analyze the following Earth Observation data for the selected Area of Interest (AOI):
+- Regional Physiographic Context: {regional_context}
 - Bounding Box (WGS84): {bbox}
 - Satellite Source: {sat_data.get('source')} (Date: {sat_data.get('scene_date')})
 - Mean Spectral NDVI: {sat_data.get('ndvi_mean')}
 - Land Cover Classification: {json.dumps(land_cover)}
 
-Based on these exact quantitative metrics and the geographic location of the bounding box, output exactly 3 professional geological, geomorphological, or structural landscape interpretations.
+Based on these exact quantitative remote sensing metrics and the geographic regional context, output exactly 3 professional geological, geomorphological, or structural landscape interpretations.
 Every interpretation MUST explain the underlying landscape (e.g., bedrock exposure, alluvial deposits, drainage patterns, lineaments, or weathering).
 
 Return ONLY a JSON array with exactly 3 objects matching this schema:
@@ -144,30 +270,17 @@ Return ONLY a JSON array with exactly 3 objects matching this schema:
                     temperature=0.2
                 )
             )
-            
             parsed = json.loads(response.text)
-            if isinstance(parsed, list) and len(parsed) > 0:
-                return parsed[:3]
+            if isinstance(parsed, list) and len(parsed) >= 3:
+                return [
+                    {
+                        "text": str(item["text"]),
+                        "confidence": min(1.0, max(0.0, float(item.get("confidence", 0.85))))
+                    }
+                    for item in parsed[:3]
+                ]
         except Exception as e:
             print(f"[Gemini API Notice] Using Rule Engine fallback: {e}")
 
-    # Level 1 Fallback: Spectral Geomorphological Rule Engine
-    ndvi_mean = sat_data.get("ndvi_mean", 0.35)
-    bare_pct = land_cover.get("Bare Soil", 15.0)
-    water_pct = land_cover.get("Water", 10.0)
-    scene_date = sat_data.get("scene_date", "2024")
-    
-    return [
-        {
-            "text": f"Dense vegetation canopy (NDVI {ndvi_mean}) across {land_cover.get('Forest', 45)}% of the AOI is likely obscuring underlying bedrock structure and fracture zones.",
-            "confidence": 0.90
-        },
-        {
-            "text": f"Exposed barren land ({bare_pct}%) and weathered soil horizons along lower elevations indicate potential alluvial terraces and erosional surface processes.",
-            "confidence": 0.83
-        },
-        {
-            "text": f"Linear drainage pathways adjacent to water bodies ({water_pct}%) exhibit dendritic to rectangular drainage patterns typical of structurally controlled valleys.",
-            "confidence": 0.77
-        }
-    ]
+    # Fallback: Dynamic Geomorphological Rule Engine
+    return generate_dynamic_geomorphology_rules(land_cover, sat_data, regional_context)
