@@ -21,6 +21,7 @@ class AnalysisResponse(BaseModel):
     interpretations: List[GeoInterpretation]
     aoi_size_km2: float
     satellite_info: Dict[str, Any]
+    cloud_warning: bool = False
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_aoi(request: AnalysisRequest):
@@ -46,7 +47,7 @@ async def analyze_aoi(request: AnalysisRequest):
         aoi_size_km2 = 14.5
         bounds = sat_data.get("bbox", [-180, -90, 180, 90])
 
-    # 3. Level 2 AI: Local Machine Learning (scikit-learn RandomForest) Land Cover Classification
+    # 3. Level 2 AI: Local Machine Learning Land Cover Classification
     land_cover = run_ml_land_cover(sat_data)
     
     # 4. Level 3 AI: Generative AI (Gemini API) / Rule Engine Geomorphological Interpretation
@@ -57,11 +58,15 @@ async def analyze_aoi(request: AnalysisRequest):
         for item in raw_interpretations
     ]
     
+    cloud_cover = float(sat_data.get("cloud_cover", 0.0))
+    cloud_warning = cloud_cover > 30.0
+
     return AnalysisResponse(
         land_cover=land_cover,
         interpretations=interpretations,
         aoi_size_km2=aoi_size_km2,
-        satellite_info=sat_data
+        satellite_info=sat_data,
+        cloud_warning=cloud_warning
     )
 
 # Serve the static frontend files directly

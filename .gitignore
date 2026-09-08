@@ -9,6 +9,8 @@ __pycache__/
 *$py.class
 *.so
 *.pyd
+.agents
+
 
 # Virtual Environments & Package Directories
 venv/
