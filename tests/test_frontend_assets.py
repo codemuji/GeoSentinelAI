@@ -76,3 +76,23 @@ def test_frontend_contains_imagery_viewer_and_stepper():
     assert ".pipeline-stepper-overlay" in css
     assert ".imagery-card" in css
 
+def test_frontend_contains_mariculture_and_fai_assets():
+    """Verifies that index.html, app.js, and style.css include ClimaCrew mariculture and FAI assets."""
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    assert "mariculture-card" in html
+    assert "mariculture-hotspots-strip" in html
+    assert "layer-fai-btn" in html
+
+    with open("frontend/app.js", "r", encoding="utf-8") as f:
+        js = f.read()
+    assert "renderMaricultureCard" in js
+    assert "faiOverlayLayer" in js
+    assert "target-hub-btn" in js
+
+    with open("frontend/style.css", "r", encoding="utf-8") as f:
+        css = f.read()
+    assert ".mariculture-card" in css
+    assert ".mariculture-hotspots-strip" in css
+    assert ".layer-dot.fai" in css
+

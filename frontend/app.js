@@ -89,14 +89,17 @@ map.addControl(drawControl);
 let activeLayer = null;
 let rgbOverlayLayer = null;
 let ndviOverlayLayer = null;
+let faiOverlayLayer = null;
 let currentRasterMode = 'rgb';
 let currentOpacity = 0.85;
 
 function clearRasterOverlays() {
   if (rgbOverlayLayer && map.hasLayer(rgbOverlayLayer)) map.removeLayer(rgbOverlayLayer);
   if (ndviOverlayLayer && map.hasLayer(ndviOverlayLayer)) map.removeLayer(ndviOverlayLayer);
+  if (faiOverlayLayer && map.hasLayer(faiOverlayLayer)) map.removeLayer(faiOverlayLayer);
   rgbOverlayLayer = null;
   ndviOverlayLayer = null;
+  faiOverlayLayer = null;
   const toolbar = document.getElementById('imagery-toolbar');
   if (toolbar) toolbar.style.display = 'none';
   const card = document.getElementById('imagery-card');
@@ -110,6 +113,7 @@ function setRasterDisplayMode(mode) {
 
   if (rgbOverlayLayer && map.hasLayer(rgbOverlayLayer)) map.removeLayer(rgbOverlayLayer);
   if (ndviOverlayLayer && map.hasLayer(ndviOverlayLayer)) map.removeLayer(ndviOverlayLayer);
+  if (faiOverlayLayer && map.hasLayer(faiOverlayLayer)) map.removeLayer(faiOverlayLayer);
 
   const previewImg = document.getElementById('imagery-preview-img');
   const modeTag = document.getElementById('imagery-mode-tag');
@@ -130,6 +134,14 @@ function setRasterDisplayMode(mode) {
     if (previewImg) previewImg.src = latestAnalysisData.ndvi_image;
     if (modeTag) modeTag.textContent = 'False Color NDVI Heatmap';
     if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.05, weight: 2 });
+  } else if (mode === 'fai' && faiOverlayLayer && latestAnalysisData?.fai_image) {
+    faiOverlayLayer.addTo(map);
+    faiOverlayLayer.setOpacity(currentOpacity);
+    document.getElementById('layer-fai-btn')?.classList.add('active');
+    document.getElementById('preview-fai-btn')?.classList.add('active');
+    if (previewImg) previewImg.src = latestAnalysisData.fai_image;
+    if (modeTag) modeTag.textContent = 'Floating Algal Index (FAI / Macroalgae Heatmap)';
+    if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.05, weight: 2 });
   } else {
     document.getElementById('layer-poly-btn')?.classList.add('active');
     if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.45, weight: 3 });
@@ -147,20 +159,28 @@ function setupRasterOverlays(data) {
   if (data.ndvi_image) {
     ndviOverlayLayer = L.imageOverlay(data.ndvi_image, bounds, { opacity: currentOpacity });
   }
+  if (data.fai_image) {
+    faiOverlayLayer = L.imageOverlay(data.fai_image, bounds, { opacity: currentOpacity });
+  }
 
   const toolbar = document.getElementById('imagery-toolbar');
   if (toolbar) toolbar.style.display = 'flex';
 
   const card = document.getElementById('imagery-card');
-  if (card && (data.rgb_image || data.ndvi_image)) {
+  if (card && (data.rgb_image || data.ndvi_image || data.fai_image)) {
     card.style.display = 'block';
     const previewImg = document.getElementById('imagery-preview-img');
-    if (previewImg) previewImg.src = data.rgb_image || data.ndvi_image;
+    if (previewImg) previewImg.src = data.rgb_image || data.ndvi_image || data.fai_image;
     const metaDate = document.getElementById('imagery-meta-date');
     if (metaDate) metaDate.textContent = `Date: ${data.satellite_info?.scene_date || '--'}`;
   }
 
-  setRasterDisplayMode('rgb');
+  // Auto-switch to FAI if marine/coastal, otherwise default to RGB
+  if (data.mariculture && data.mariculture.is_coastal && data.fai_image) {
+    setRasterDisplayMode('fai');
+  } else {
+    setRasterDisplayMode('rgb');
+  }
 }
 
 function runStepperAnimation() {
@@ -314,9 +334,11 @@ document.addEventListener('keydown', (e) => {
 // Wire raster toolbar and viewer controls
 document.getElementById('layer-rgb-btn')?.addEventListener('click', () => setRasterDisplayMode('rgb'));
 document.getElementById('layer-ndvi-btn')?.addEventListener('click', () => setRasterDisplayMode('ndvi'));
+document.getElementById('layer-fai-btn')?.addEventListener('click', () => setRasterDisplayMode('fai'));
 document.getElementById('layer-poly-btn')?.addEventListener('click', () => setRasterDisplayMode('thematic'));
 document.getElementById('preview-rgb-btn')?.addEventListener('click', () => setRasterDisplayMode('rgb'));
 document.getElementById('preview-ndvi-btn')?.addEventListener('click', () => setRasterDisplayMode('ndvi'));
+document.getElementById('preview-fai-btn')?.addEventListener('click', () => setRasterDisplayMode('fai'));
 
 const opacityInput = document.getElementById('layer-opacity');
 if (opacityInput) {
@@ -326,8 +348,36 @@ if (opacityInput) {
     if (opVal) opVal.textContent = `${e.target.value}%`;
     if (rgbOverlayLayer) rgbOverlayLayer.setOpacity(currentOpacity);
     if (ndviOverlayLayer) ndviOverlayLayer.setOpacity(currentOpacity);
+    if (faiOverlayLayer) faiOverlayLayer.setOpacity(currentOpacity);
   });
 }
+
+// ClimaCrew Indian Coastal Mariculture Hub Selectors
+document.querySelectorAll('.target-hub-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const lat = parseFloat(btn.dataset.lat);
+    const lon = parseFloat(btn.dataset.lon);
+    const name = btn.dataset.name;
+    map.setView([lat, lon], 12);
+    
+    clearRasterOverlays();
+    drawnItems.clearLayers();
+    const bounds = L.latLngBounds([[lat - 0.04, lon - 0.04], [lat + 0.04, lon + 0.04]]);
+    activeLayer = L.rectangle(bounds, { color: '#00f0ff', weight: 2, fillOpacity: 0.2 });
+    drawnItems.addLayer(activeLayer);
+    
+    const center = bounds.getCenter();
+    const areaSqKm = (L.GeometryUtil.geodesicArea(activeLayer.getLatLngs()[0]) / 1000000).toFixed(2);
+    document.getElementById('coord-display').textContent = `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+    document.getElementById('bbox-display').textContent = `${bounds.getSouthWest().lat.toFixed(2)},${bounds.getSouthWest().lng.toFixed(2)} to ${bounds.getNorthEast().lat.toFixed(2)},${bounds.getNorthEast().lng.toFixed(2)}`;
+    document.getElementById('area-display').textContent = `${areaSqKm} sq km`;
+    document.getElementById('aoi-status').textContent = `LOCKED // ${name.toUpperCase()}`;
+    document.getElementById('aoi-status').style.color = 'var(--accent)';
+    document.getElementById('analyze-btn').disabled = false;
+    
+    document.getElementById('analyze-btn').click();
+  });
+});
 
 // Analyze button handler - calls Python FastAPI endpoint
 document.getElementById('analyze-btn').addEventListener('click', async () => {
@@ -474,6 +524,67 @@ function renderResults(data) {
       literatureContainer.innerHTML = '<p class="placeholder-text">No indexed geological papers found for this exact geographic sector.</p>';
     }
   }
+
+  // Render ClimaCrew Mariculture & Blue Carbon Intelligence
+  renderMaricultureCard(data.mariculture);
+}
+
+function renderMaricultureCard(mariculture) {
+  const container = document.getElementById('mariculture-container');
+  const badge = document.getElementById('mariculture-badge');
+  if (!container) return;
+
+  if (!mariculture || !mariculture.is_coastal) {
+    if (badge) {
+      badge.textContent = 'INLAND AOI';
+      badge.className = 'badge';
+    }
+    container.innerHTML = `
+      <p class="placeholder-text">Selected AOI is predominantly inland terrestrial. Select a coastal hotspot (e.g. Palk Bay, Gulf of Kutch) or draw an AOI over marine waters to assess mariculture feasibility & Blue Carbon sequestration.</p>
+    `;
+    return;
+  }
+
+  if (badge) {
+    badge.textContent = `MCDA: ${mariculture.suitability_score}%`;
+    badge.className = mariculture.suitability_score >= 80 ? 'badge badge-success' : 'badge';
+  }
+
+  const speciesHtml = (mariculture.recommended_species || []).map(sp => `
+    <div class="species-chip">🌿 ${sp}</div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="mariculture-hud">
+      <div class="hud-status-row">
+        <span class="hud-tier-label">${mariculture.feasibility_tier}</span>
+        <span class="hud-score-val mono">${mariculture.suitability_score}/100</span>
+      </div>
+      <div class="stat-bar" style="margin-bottom: 0.8rem;">
+        <div class="stat-fill" style="width: ${mariculture.suitability_score}%; background: ${mariculture.suitability_score >= 80 ? '#00f0ff' : '#f59e0b'};"></div>
+      </div>
+
+      <div class="info-grid mono">
+        <div><label>Marine Water Surface:</label> <span>${mariculture.water_area_ha?.toLocaleString()} ha</span></div>
+        <div><label>Optical Water Clarity:</label> <span>${mariculture.water_clarity}</span></div>
+        <div><label>Chlorophyll-a Proxy:</label> <span>${mariculture.estimated_chlorophyll_mg_m3} mg/m³</span></div>
+        <div><label>Est. Wet Biomass Yield:</label> <span style="color:#00f0ff;">${mariculture.wet_biomass_annual_tonnes?.toLocaleString()} MT/yr</span></div>
+        <div><label>Projected Blue Carbon (CO₂e):</label> <span style="color:#10b981;">${mariculture.co2_sequestered_t_annual?.toLocaleString()} tCO₂e/yr</span></div>
+        <div><label>Coastal Livelihoods Supported:</label> <span>${mariculture.coastal_jobs_supported?.toLocaleString()} fisherfolk</span></div>
+      </div>
+
+      <div style="margin-top: 0.75rem;">
+        <label class="chip-label" style="display:block; margin-bottom: 0.35rem; font-size: 0.7rem; color: var(--text-secondary);">RECOMMENDED MARICULTURE SPECIES:</label>
+        <div style="display:flex; flex-direction:column; gap:0.3rem;">
+          ${speciesHtml}
+        </div>
+      </div>
+
+      <p class="mariculture-desc" style="margin-top: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-secondary);">
+        ${mariculture.summary}
+      </p>
+    </div>
+  `;
 }
 
 function populateReportModal(data) {
@@ -553,6 +664,33 @@ function populateReportModal(data) {
           <img src="${data.ndvi_image}" style="width: 100%; max-height: 190px; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-border);" alt="NDVI Heatmap" />
         </div>
         ` : ''}
+        ${data.fai_image ? `
+        <div style="flex: 1; min-width: 220px;">
+          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem;">Floating Algal Index (FAI / Macroalgae Heatmap)</div>
+          <img src="${data.fai_image}" style="width: 100%; max-height: 190px; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-border);" alt="FAI Algal Heatmap" />
+        </div>
+        ` : ''}
+      </div>
+    </div>
+  ` : '';
+
+  const maricultureHtml = data.mariculture && data.mariculture.is_coastal ? `
+    <div class="report-section">
+      <h3>3. Blue Carbon MRV &amp; Coastal Mariculture Feasibility (ClimaCrew Model)</h3>
+      <div class="report-grid-2">
+        <div><label>Site Suitability Index (MCDA):</label> <span style="font-weight:700; color:#00f0ff;">${data.mariculture.suitability_score}% (${data.mariculture.feasibility_tier})</span></div>
+        <div><label>Marine Farming Water Area:</label> <span>${data.mariculture.water_area_ha?.toLocaleString()} ha</span></div>
+        <div><label>Optical Water Clarity:</label> <span>${data.mariculture.water_clarity}</span></div>
+        <div><label>Chlorophyll-a Proxy:</label> <span>${data.mariculture.estimated_chlorophyll_mg_m3} mg/m³</span></div>
+        <div><label>Est. Annual Wet Biomass:</label> <span style="font-weight:700; color:#00f0ff;">${data.mariculture.wet_biomass_annual_tonnes?.toLocaleString()} MT / year</span></div>
+        <div><label>Projected Blue Carbon (CO₂e):</label> <span style="font-weight:700; color:#10b981;">${data.mariculture.co2_sequestered_t_annual?.toLocaleString()} tCO₂e / year</span></div>
+        <div><label>Coastal Livelihoods Supported:</label> <span>${data.mariculture.coastal_jobs_supported?.toLocaleString()} fisherfolk</span></div>
+      </div>
+      <div style="margin-top: 0.6rem; font-size: 0.8rem; line-height: 1.4;">
+        <strong>Recommended Cultivars:</strong> ${data.mariculture.recommended_species?.join(' • ')}
+      </div>
+      <div class="report-callout" style="margin-top: 0.6rem;">
+        ${data.mariculture.summary}
       </div>
     </div>
   ` : '';
@@ -575,8 +713,10 @@ function populateReportModal(data) {
 
       ${imageryHtml}
 
+      ${maricultureHtml}
+
       <div class="report-section">
-        <h3>3. Biophysical Land Cover Distribution</h3>
+        <h3>${maricultureHtml ? '4' : '3'}. Biophysical Land Cover Distribution</h3>
         <div class="report-distribution-bar">
           ${distBars}
         </div>
@@ -586,17 +726,17 @@ function populateReportModal(data) {
       </div>
 
       <div class="report-section">
-        <h3>4. Geomorphological & Structural Landscape Assessment</h3>
+        <h3>${maricultureHtml ? '5' : '4'}. Geomorphological & Structural Landscape Assessment</h3>
         ${interpHtml}
       </div>
 
       <div class="report-section">
-        <h3>5. Ground-Truth Academic Research & Field Surveys (OpenAlex)</h3>
+        <h3>${maricultureHtml ? '6' : '5'}. Ground-Truth Academic Research & Field Surveys (OpenAlex)</h3>
         ${litHtml}
       </div>
 
       <div class="report-footer-notice">
-        GeoSentinel AI Tactical Platform • Sentinel-2 L2A BOA Multispectral Analytics • Microsoft Planetary Computer STAC
+        GeoSentinel AI Tactical Platform • Sentinel-2 L2A BOA Multispectral Analytics • ClimaCrew Blue Economy Extension
       </div>
     `;
   }

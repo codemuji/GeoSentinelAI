@@ -8,10 +8,12 @@ OPENALEX_API_URL = "https://api.openalex.org/works"
 USER_AGENT = "GeoSentinelAI/1.0 (mailto:admin@geosentinel.ai)"
 
 def build_literature_query(regional_context: str) -> str:
-    """Constructs an effective academic search query for regional geology."""
+    """Constructs an effective academic search query for regional geology or coastal mariculture."""
     if not regional_context or "Terrain Sector" in regional_context:
         return "geology geomorphology remote sensing"
     clean_context = " ".join([part.strip() for part in regional_context.split(",") if part.strip()])
+    if any(keyword in regional_context.lower() for keyword in ["marine", "gulf", "strait", "coast", "littoral", "archipelago", "bay", "seaweed"]):
+        return f"{clean_context} seaweed aquaculture marine remote sensing"
     return f"{clean_context} geology"
 
 def format_paper_item(item: Dict[str, Any]) -> Dict[str, Any]:

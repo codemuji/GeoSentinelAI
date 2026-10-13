@@ -20,11 +20,17 @@ from backend.services.engine import (
     run_ml_land_cover,
     generate_geological_interpretation,
     get_regional_context,
-    generate_imagery_overlays
+    generate_imagery_overlays,
+    compute_mariculture_intelligence
 )
 from backend.services.literature import fetch_regional_literature
 
 app = FastAPI(title="GeoSentinel AI API", description="AI-powered Geological & Remote Sensing Intelligence Platform")
+
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "service": "GeoSentinelAI", "version": "1.2.0"}
 
 class AnalysisRequest(BaseModel):
     aoi: Dict[str, Any]
@@ -43,6 +49,19 @@ class ResearchPaper(BaseModel):
     is_open_access: bool = False
     oa_url: Optional[str] = None
 
+class MaricultureIntelligence(BaseModel):
+    is_coastal: bool = False
+    suitability_score: float = 0.0
+    feasibility_tier: str = "N/A"
+    recommended_species: List[str] = []
+    water_area_ha: float = 0.0
+    water_clarity: str = "Moderate"
+    estimated_chlorophyll_mg_m3: float = 0.0
+    wet_biomass_annual_tonnes: float = 0.0
+    co2_sequestered_t_annual: float = 0.0
+    coastal_jobs_supported: int = 0
+    summary: str = ""
+
 class AnalysisResponse(BaseModel):
     land_cover: Dict[str, float]
     interpretations: List[GeoInterpretation]
@@ -52,7 +71,9 @@ class AnalysisResponse(BaseModel):
     literature: List[ResearchPaper] = []
     rgb_image: Optional[str] = None
     ndvi_image: Optional[str] = None
+    fai_image: Optional[str] = None
     image_bounds: Optional[List[List[float]]] = None
+    mariculture: Optional[MaricultureIntelligence] = None
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_aoi(request: AnalysisRequest):
@@ -94,8 +115,12 @@ async def analyze_aoi(request: AnalysisRequest):
     papers_data = fetch_regional_literature(regional_context, limit=4)
     literature = [ResearchPaper(**p) for p in papers_data]
     
-    # 6. Generate True-Color RGB and False-Color NDVI raster overlays
+    # 6. Generate True-Color RGB, False-Color NDVI, and Floating Algae Index (FAI) raster overlays
     overlays = generate_imagery_overlays(sat_data, effective_bbox)
+    
+    # 7. Mariculture Suitability & Blue Carbon Sequestration MRV Engine (ClimaCrew)
+    mariculture_data = compute_mariculture_intelligence(land_cover, sat_data, aoi_size_km2, effective_bbox)
+    mariculture = MaricultureIntelligence(**mariculture_data)
     
     cloud_cover = float(sat_data.get("cloud_cover", 0.0))
     cloud_warning = cloud_cover > 30.0
@@ -110,7 +135,9 @@ async def analyze_aoi(request: AnalysisRequest):
         literature=literature,
         rgb_image=overlays.get("rgb_image"),
         ndvi_image=overlays.get("ndvi_image"),
-        image_bounds=overlays.get("image_bounds")
+        fai_image=overlays.get("fai_image"),
+        image_bounds=overlays.get("image_bounds"),
+        mariculture=mariculture
     )
 
 # Serve the static frontend files directly

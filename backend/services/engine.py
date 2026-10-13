@@ -131,8 +131,17 @@ def get_regional_context(bbox: List[float]) -> str:
     except Exception:
         pass
 
+    # Indian Coastal & Marine Mariculture Belts (ClimaCrew Aquaculture Hubs)
+    if 8.5 <= lat <= 10.5 and 78.5 <= lon <= 80.2:
+        return "Palk Strait & Gulf of Mannar Marine Biosphere (Tamil Nadu)"
+    elif 21.5 <= lat <= 23.5 and 68.5 <= lon <= 70.8:
+        return "Gulf of Kutch Coastal Marine Ecosystem (Gujarat)"
+    elif 15.5 <= lat <= 16.5 and 73.0 <= lon <= 73.8:
+        return "Malvan Marine Sanctuary & Konkan Littoral Shelf (Maharashtra)"
+    elif 6.5 <= lat <= 14.0 and 92.0 <= lon <= 94.0:
+        return "Andaman & Nicobar Archipelago Marine Ecoregion"
     # Heuristic regional classification based on physiographic bounds
-    if 26.0 <= lat <= 36.0 and 73.0 <= lon <= 98.0:
+    elif 26.0 <= lat <= 36.0 and 73.0 <= lon <= 98.0:
         return "Eastern Himalayas & Tibetan Orogenic Belt"
     elif 8.0 <= lat <= 21.0 and 73.0 <= lon <= 77.5:
         return "Western Ghats Escarpment"
@@ -162,7 +171,30 @@ def generate_dynamic_geomorphology_rules(
     agri = float(land_cover.get("Agriculture", 0.0))
     urban = float(land_cover.get("Urban", 0.0))
 
-    # Statement 1: Bedrock & Lithology exposure
+    # Statement 1: Bedrock, Lithology, or Coastal Marine Photic Zone
+    is_marine_context = any(m in regional_context.lower() for m in ["marine", "gulf", "strait", "coast", "littoral", "archipelago", "bay"])
+    if is_marine_context or water > 35.0:
+        interp_1 = (
+            f"Littoral shelf bathymetry across {regional_context} provides a stable coastal photic zone "
+            f"conducive to benthic macroalgae colonization and seaweed aquaculture."
+        )
+        conf_1 = 0.89
+        interp_2 = (
+            f"Surface hydrodynamic kinetics and tidal wave attenuation across {water:.1f}% marine surface reflect "
+            f"sheltered coastal embayment conditions optimal for monoline/raft mariculture."
+        )
+        conf_2 = 0.86
+        interp_3 = (
+            f"Low terrigenous sediment influx and moderate optical clarity support sustained carbon sequestration "
+            f"and high-yield Kappaphycus alvarezii / Gracilaria biomass growth."
+        )
+        conf_3 = 0.83
+        return [
+            {"text": interp_1, "confidence": conf_1},
+            {"text": interp_2, "confidence": conf_2},
+            {"text": interp_3, "confidence": conf_3}
+        ]
+
     if bare > 40.0:
         interp_1 = (
             f"Widespread exposed barren surface ({bare:.1f}%) in {regional_context} indicates active mechanical "
@@ -315,19 +347,36 @@ def create_synthetic_terrain_bands(bbox: List[float], ndvi_mean: float = 0.38) -
     y = np.linspace(0, 3 * np.pi, 64)
     xx, yy = np.meshgrid(x, y)
     
-    # Vegetation gradient modulated by elevation & target mean
+    lat = (bbox[1] + bbox[3]) / 2.0
+    lon = (bbox[0] + bbox[2]) / 2.0
+    is_marine = ndvi_mean < 0.20 or (8.0 <= lat <= 11.0 and 78.0 <= lon <= 80.5) or (21.5 <= lat <= 23.5 and 68.5 <= lon <= 71.0)
+
+    if is_marine:
+        # Coastal marine water with nearshore reef / macroalgal patch
+        water_depth = np.clip(0.5 + 0.4 * np.sin(xx * 0.6 + yy * 0.4), 0.1, 0.9).astype(np.float32)
+        b02_blue = np.clip(0.16 + 0.08 * (1.0 - water_depth), 0.10, 0.30).astype(np.float32)
+        b03_green = np.clip(0.11 + 0.06 * (1.0 - water_depth), 0.06, 0.24).astype(np.float32)
+        b04_red = np.clip(0.04 + 0.03 * (1.0 - water_depth), 0.02, 0.14).astype(np.float32)
+        # Macroalgal rafts in protected shallows show sharp NIR signature
+        algae_patch = np.exp(-((xx - 4.5)**2 + (yy - 4.5)**2) / 4.0).astype(np.float32)
+        b08_nir = np.clip(0.02 + 0.28 * algae_patch, 0.01, 0.45).astype(np.float32)
+        b11_swir = np.clip(0.015 + 0.06 * algae_patch, 0.01, 0.20).astype(np.float32)
+        return {"B02": b02_blue, "B03": b03_green, "B04": b04_red, "B08": b08_nir, "B11": b11_swir}
+
+    # Terrestrial vegetation gradient modulated by elevation & target mean
     veg_factor = np.clip(ndvi_mean + 0.2 * np.sin(xx * 0.8), 0.05, 0.85).astype(np.float32)
     b04_red = np.clip(0.18 * (1.0 - veg_factor) + 0.04, 0.02, 0.35).astype(np.float32)
     b03_green = np.clip(0.12 * veg_factor + 0.05, 0.03, 0.30).astype(np.float32)
     b02_blue = np.clip(b03_green * 0.75 + 0.02, 0.02, 0.25).astype(np.float32)
     b08_nir = np.clip(b04_red + veg_factor * 0.45, 0.05, 0.65).astype(np.float32)
+    b11_swir = np.clip(b04_red * 0.9, 0.02, 0.40).astype(np.float32)
     
-    return {"B02": b02_blue, "B03": b03_green, "B04": b04_red, "B08": b08_nir}
+    return {"B02": b02_blue, "B03": b03_green, "B04": b04_red, "B08": b08_nir, "B11": b11_swir}
 
 def generate_imagery_overlays(sat_data: Dict[str, Any], bbox: List[float]) -> Dict[str, Any]:
     """
-    Generates True-Color (RGB) and False-Color (NDVI) PNG data URLs for AOI map overlays.
-    Returns rgb_image, ndvi_image, and image_bounds formatted for Leaflet L.imageOverlay.
+    Generates True-Color (RGB), False-Color NDVI, and Floating Algae Index (FAI) PNG data URLs
+    for AOI map overlays formatted for Leaflet L.imageOverlay.
     """
     bands = sat_data.get("bands", {})
     required = ["B03", "B04", "B08"]
@@ -347,6 +396,7 @@ def generate_imagery_overlays(sat_data: Dict[str, Any], bbox: List[float]) -> Di
     else:
         blue = (green * 0.82).astype(np.float32)
     nir = bands["B08"][:min_rows, :min_cols].astype(np.float32)
+    swir = bands.get("B11", red * 0.75)[:min_rows, :min_cols].astype(np.float32)
 
     # 1. True-Color RGB Image
     r_uint8 = stretch_reflectance_channel(red)
@@ -382,8 +432,37 @@ def generate_imagery_overlays(sat_data: Dict[str, Any], bbox: List[float]) -> Di
     if min_cols < target_dim or min_rows < target_dim:
         ndvi_img = ndvi_img.resize((target_dim, target_dim), Image.Resampling.BILINEAR)
 
+    # 3. Floating Algal Index (FAI / Macroalgae Seaweed Canopy Heatmap)
+    # FAI = NIR - [Red + (SWIR - Red) * ((842 - 665) / (1610 - 665))] = NIR - [Red + (SWIR - Red) * 0.1873]
+    fai_baseline = red + (swir - red) * 0.1873
+    fai = nir - fai_baseline
+
+    fai_stops = [-0.04, -0.01, 0.01, 0.035, 0.075]
+    fai_colors = [
+        [6, 24, 52],      # Abyssal Navy (Deep Clear Marine Water)
+        [0, 150, 180],    # Marine Turquoise (Coastal Photic Ocean)
+        [20, 205, 140],   # Aquamarine (Algal Productivity / Phytoplankton)
+        [57, 255, 20],    # Neon Lime Green (Dense Floating Macroalgae / Seaweed Rafts)
+        [255, 220, 0]     # Luminous Gold (Harvest-Ready Macroalgae Canopy)
+    ]
+    fai_r = np.interp(fai, fai_stops, [c[0] for c in fai_colors]).astype(np.uint8)
+    fai_g = np.interp(fai, fai_stops, [c[1] for c in fai_colors]).astype(np.uint8)
+    fai_b = np.interp(fai, fai_stops, [c[2] for c in fai_colors]).astype(np.uint8)
+    fai_a = np.full_like(fai_r, 225, dtype=np.uint8)
+
+    # Subdue terrestrial landmass (high NDVI / high NIR) into muted dark slate
+    land_mask = (ndvi > 0.28) & (nir > 0.20)
+    fai_r[land_mask] = 18
+    fai_g[land_mask] = 26
+    fai_b[land_mask] = 36
+    fai_a[land_mask] = 175
+
+    fai_rgba = np.dstack([fai_r, fai_g, fai_b, fai_a])
+    fai_img = Image.fromarray(fai_rgba, mode="RGBA")
+    if min_cols < target_dim or min_rows < target_dim:
+        fai_img = fai_img.resize((target_dim, target_dim), Image.Resampling.BILINEAR)
+
     # Image bounds in Leaflet [[South, West], [North, East]] order
-    # bbox is [min_lon, min_lat, max_lon, max_lat]
     image_bounds = [
         [float(bbox[1]), float(bbox[0])],
         [float(bbox[3]), float(bbox[2])]
@@ -392,6 +471,128 @@ def generate_imagery_overlays(sat_data: Dict[str, Any], bbox: List[float]) -> Di
     return {
         "rgb_image": encode_pil_png_data_url(rgb_img),
         "ndvi_image": encode_pil_png_data_url(ndvi_img),
+        "fai_image": encode_pil_png_data_url(fai_img),
         "image_bounds": image_bounds
+    }
+
+def compute_mariculture_intelligence(
+    land_cover: Dict[str, float],
+    sat_data: Dict[str, Any],
+    aoi_size_km2: float,
+    bbox: List[float]
+) -> Dict[str, Any]:
+    """
+    Computes Coastal Seaweed Mariculture Suitability, Marine Indicators,
+    and Blue Carbon Sequestration MRV Projections (tailored for ClimaCrew Blue Economy).
+    """
+    water_pct = float(land_cover.get("Water", 0.0))
+    lat = (bbox[1] + bbox[3]) / 2.0
+    lon = (bbox[0] + bbox[2]) / 2.0
+    
+    is_known_marine_zone = (
+        (8.0 <= lat <= 11.0 and 78.0 <= lon <= 80.5) or   # Palk Bay & Gulf of Mannar (Tamil Nadu)
+        (21.5 <= lat <= 23.5 and 68.5 <= lon <= 71.0) or  # Gulf of Kutch (Gujarat)
+        (15.5 <= lat <= 16.5 and 73.0 <= lon <= 73.8) or  # Malvan / Sindhudurg (Maharashtra)
+        (6.5 <= lat <= 14.0 and 92.0 <= lon <= 94.0)      # Andaman & Nicobar Archipelago
+    )
+    
+    is_coastal = water_pct >= 2.0 or is_known_marine_zone
+    if not is_coastal:
+        return {
+            "is_coastal": False,
+            "suitability_score": 0.0,
+            "feasibility_tier": "INLAND // NON-MARINE AOI",
+            "recommended_species": [],
+            "water_area_ha": 0.0,
+            "water_clarity": "N/A",
+            "estimated_chlorophyll_mg_m3": 0.0,
+            "wet_biomass_annual_tonnes": 0.0,
+            "co2_sequestered_t_annual": 0.0,
+            "coastal_jobs_supported": 0,
+            "summary": "AOI is located in an inland terrestrial biome (<2% water surface). Mariculture analysis is inactive."
+        }
+
+    # Effective coastal water area in hectares (1 km2 = 100 hectares)
+    effective_water_pct = max(water_pct, 18.0 if is_known_marine_zone else 5.0)
+    water_area_ha = round((aoi_size_km2 * 100.0) * (effective_water_pct / 100.0), 1)
+    
+    # Spectral band heuristics for water clarity
+    bands = sat_data.get("bands", {})
+    if "B04" in bands and "B03" in bands and isinstance(bands["B04"], np.ndarray):
+        b04 = bands["B04"]
+        b03 = bands["B03"]
+        turbidity_ratio = float(np.mean(b04) / (np.mean(b03) + 1e-6))
+    else:
+        turbidity_ratio = 0.92
+
+    if turbidity_ratio < 0.88:
+        water_clarity = "High Clarity (Clear Marine Water)"
+        clarity_score = 92
+    elif turbidity_ratio <= 1.15:
+        water_clarity = "Moderate Clarity (Nutrient-Rich Coastal)"
+        clarity_score = 85
+    else:
+        water_clarity = "Turbid (Elevated Sediment Influx)"
+        clarity_score = 55
+
+    # Chlorophyll-a / Algal proxy (mg/m3)
+    ndvi_mean = float(sat_data.get("ndvi_mean", 0.15))
+    chla_est = round(max(0.12, min(2.5, 0.35 + (ndvi_mean * 0.8) + (0.1 if is_known_marine_zone else 0.0))), 2)
+
+    # Suitability Scoring (0-100)
+    base_score = 78.0
+    if is_known_marine_zone:
+        base_score += 12.0
+    if clarity_score >= 85:
+        base_score += 5.0
+    else:
+        base_score -= 15.0
+    cloud_cover = float(sat_data.get("cloud_cover", 0.0))
+    if cloud_cover > 20:
+        base_score -= 8.0
+    suitability_score = round(max(20.0, min(97.0, base_score)), 1)
+
+    if suitability_score >= 82:
+        feasibility_tier = "OPTIMAL - TIER 1 (PRIME SEAWEED CORRIDOR)"
+    elif suitability_score >= 65:
+        feasibility_tier = "VIABLE - TIER 2 (MODERATE HYDRODYNAMIC RISK)"
+    else:
+        feasibility_tier = "MARGINAL - TIER 3 (ELEVATED TURBIDITY / SEDIMENT PLUME)"
+
+    recommended_species = [
+        "Kappaphycus alvarezii (Carrageenan / High-Value Hydrocolloid)",
+        "Gracilaria edulis (Agar / Food & Pharmaceutical Grade)",
+        "Sargassum wightii (Alginates & Organic Plant Biostimulants)"
+    ]
+
+    # Blue Carbon MRV Projections:
+    # Industry standard for Indian coastal monoline/bamboo raft farming: ~42-48 wet MT / hectare / year.
+    # Dry weight is ~10% of wet weight. Carbon fraction is ~30% of dry weight.
+    # CO2 equivalent: Carbon * (44 / 12) = 3.67x carbon weight.
+    wet_biomass = round(water_area_ha * 44.5, 1)
+    dry_biomass = round(wet_biomass * 0.10, 1)
+    c_tonnes = dry_biomass * 0.30
+    co2e_annual = round(c_tonnes * (44.0 / 12.0), 2)
+    jobs = max(1, int(water_area_ha * 1.4))
+
+    summary = (
+        f"Coastal mariculture assessment indicates {suitability_score}% suitability ({feasibility_tier}). "
+        f"Evaluated {water_area_ha} ha of marine waters with {water_clarity}. "
+        f"Projected annual wet biomass: {wet_biomass:,.1f} MT, sequestering approximately {co2e_annual:,.1f} tCO₂e/yr "
+        f"across sustainable raft/monoline deployments, supporting an estimated {jobs} coastal fisherfolk livelihoods."
+    )
+
+    return {
+        "is_coastal": True,
+        "suitability_score": suitability_score,
+        "feasibility_tier": feasibility_tier,
+        "recommended_species": recommended_species,
+        "water_area_ha": water_area_ha,
+        "water_clarity": water_clarity,
+        "estimated_chlorophyll_mg_m3": chla_est,
+        "wet_biomass_annual_tonnes": wet_biomass,
+        "co2_sequestered_t_annual": co2e_annual,
+        "coastal_jobs_supported": jobs,
+        "summary": summary
     }
 

@@ -59,12 +59,22 @@
           <div class="hud-grid-crosshair"></div>
         </div>
 
+        <!-- Indian Coastal Mariculture Hotspots Strip (ClimaCrew) -->
+        <div class="mariculture-hotspots-strip">
+          <span class="strip-label"><span class="pulse-indicator-cyan"></span>MARICULTURE HUBS:</span>
+          <button class="target-hub-btn" data-lat="9.28" data-lon="79.13" data-name="Palk Bay / Mandapam (TN)">⌖ PALK BAY / MANNAR (TN)</button>
+          <button class="target-hub-btn" data-lat="22.45" data-lon="69.05" data-name="Gulf of Kutch / Mithapur (GJ)">⌖ GULF OF KUTCH (GJ)</button>
+          <button class="target-hub-btn" data-lat="16.05" data-lon="73.46" data-name="Malvan Konkan (MH)">⌖ MALVAN KONKAN (MH)</button>
+          <button class="target-hub-btn" data-lat="11.98" data-lon="92.98" data-name="Andaman Archipelago (AN)">⌖ ANDAMAN (AN)</button>
+        </div>
+
         <!-- Floating Raster Imagery Toolbar -->
         <div class="map-imagery-toolbar" id="imagery-toolbar" style="display: none;">
           <div class="imagery-mode-group">
             <span class="toolbar-label">RASTER FEED</span>
             <button id="layer-rgb-btn" class="layer-toggle-btn active" title="Sentinel-2 True Color (RGB)"><span class="layer-dot rgb"></span> TRUE COLOR</button>
             <button id="layer-ndvi-btn" class="layer-toggle-btn" title="False Color NDVI Heatmap"><span class="layer-dot ndvi"></span> NDVI HEATMAP</button>
+            <button id="layer-fai-btn" class="layer-toggle-btn" title="Floating Algal Index (FAI / Macroalgae Heatmap)"><span class="layer-dot fai"></span> ALGAE (FAI)</button>
             <button id="layer-poly-btn" class="layer-toggle-btn" title="Thematic Land Cover Vector"><span class="layer-dot vector"></span> THEMATIC</button>
           </div>
           <div class="imagery-opacity-group">
@@ -148,6 +158,7 @@
             <div class="imagery-card-controls">
               <button id="preview-rgb-btn" class="btn-chip active">TRUE COLOR (RGB)</button>
               <button id="preview-ndvi-btn" class="btn-chip">NDVI HEATMAP</button>
+              <button id="preview-fai-btn" class="btn-chip">ALGAE (FAI)</button>
               <span class="imagery-meta-hint mono" id="imagery-meta-date">DATE: --</span>
             </div>
           </div>
@@ -164,6 +175,17 @@
               <div><label>Acquisition Date:</label> <span id="capture-display">--</span></div>
               <div><label>Cloud Cover:</label> <span id="cloud-display">--</span></div>
               <div><label>Mean Spectral NDVI:</label> <span id="ndvi-display">--</span></div>
+            </div>
+          </div>
+
+          <!-- Mariculture & Blue Carbon Intelligence (ClimaCrew) -->
+          <div class="card mariculture-card" id="mariculture-card">
+            <div class="card-title-row">
+              <h3>// BLUE CARBON &amp; MARICULTURE INTEL</h3>
+              <span class="badge" id="mariculture-badge">CLIMACREW READY</span>
+            </div>
+            <div id="mariculture-container">
+              <p class="placeholder-text">Draw an AOI or select a marine hotspot to assess mariculture feasibility, FAI macroalgal canopy, and Blue Carbon sequestration potential.</p>
             </div>
           </div>
 
