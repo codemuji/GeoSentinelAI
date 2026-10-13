@@ -1,5 +1,8 @@
 import os
 import json
+import io
+import base64
+from PIL import Image
 import numpy as np
 from typing import Dict, Any, List, Tuple
 
@@ -287,3 +290,108 @@ Return ONLY a JSON array with exactly 3 objects matching this schema:
 
     # Fallback: Dynamic Geomorphological Rule Engine
     return generate_dynamic_geomorphology_rules(land_cover, sat_data, regional_context)
+
+def stretch_reflectance_channel(ch: np.ndarray, p_low: float = 2.0, p_high: float = 98.0) -> np.ndarray:
+    """Linearly stretches satellite surface reflectance channel to 0-255 uint8 range."""
+    valid = ch[ch > 0]
+    if valid.size == 0:
+        return np.zeros_like(ch, dtype=np.uint8)
+    vmin = float(np.percentile(valid, p_low))
+    vmax = float(np.percentile(valid, p_high))
+    if vmax <= vmin:
+        vmax = vmin + 0.15
+    stretched = np.clip((ch - vmin) / (vmax - vmin), 0.0, 1.0)
+    return (stretched * 255.0).astype(np.uint8)
+
+def encode_pil_png_data_url(image: Image.Image) -> str:
+    """Encodes a PIL Image into a base64 PNG data URL."""
+    buf = io.BytesIO()
+    image.save(buf, format="PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+def create_synthetic_terrain_bands(bbox: List[float], ndvi_mean: float = 0.38) -> Dict[str, np.ndarray]:
+    """Generates synthetic 64x64 spectral band arrays for simulated offline rendering."""
+    x = np.linspace(0, 3 * np.pi, 64)
+    y = np.linspace(0, 3 * np.pi, 64)
+    xx, yy = np.meshgrid(x, y)
+    
+    # Vegetation gradient modulated by elevation & target mean
+    veg_factor = np.clip(ndvi_mean + 0.2 * np.sin(xx * 0.8), 0.05, 0.85).astype(np.float32)
+    b04_red = np.clip(0.18 * (1.0 - veg_factor) + 0.04, 0.02, 0.35).astype(np.float32)
+    b03_green = np.clip(0.12 * veg_factor + 0.05, 0.03, 0.30).astype(np.float32)
+    b02_blue = np.clip(b03_green * 0.75 + 0.02, 0.02, 0.25).astype(np.float32)
+    b08_nir = np.clip(b04_red + veg_factor * 0.45, 0.05, 0.65).astype(np.float32)
+    
+    return {"B02": b02_blue, "B03": b03_green, "B04": b04_red, "B08": b08_nir}
+
+def generate_imagery_overlays(sat_data: Dict[str, Any], bbox: List[float]) -> Dict[str, Any]:
+    """
+    Generates True-Color (RGB) and False-Color (NDVI) PNG data URLs for AOI map overlays.
+    Returns rgb_image, ndvi_image, and image_bounds formatted for Leaflet L.imageOverlay.
+    """
+    bands = sat_data.get("bands", {})
+    required = ["B03", "B04", "B08"]
+    has_real_bands = all(b in bands and isinstance(bands[b], np.ndarray) and bands[b].size > 0 for b in required)
+
+    if not has_real_bands:
+        ndvi_mean = float(sat_data.get("ndvi_mean", 0.38))
+        bands = create_synthetic_terrain_bands(bbox, ndvi_mean)
+
+    min_rows = min(bands[b].shape[0] for b in ["B03", "B04", "B08"] if b in bands)
+    min_cols = min(bands[b].shape[1] for b in ["B03", "B04", "B08"] if b in bands)
+
+    red = bands["B04"][:min_rows, :min_cols].astype(np.float32)
+    green = bands["B03"][:min_rows, :min_cols].astype(np.float32)
+    if "B02" in bands and bands["B02"].size > 0:
+        blue = bands["B02"][:min_rows, :min_cols].astype(np.float32)
+    else:
+        blue = (green * 0.82).astype(np.float32)
+    nir = bands["B08"][:min_rows, :min_cols].astype(np.float32)
+
+    # 1. True-Color RGB Image
+    r_uint8 = stretch_reflectance_channel(red)
+    g_uint8 = stretch_reflectance_channel(green)
+    b_uint8 = stretch_reflectance_channel(blue)
+    rgb_arr = np.dstack([r_uint8, g_uint8, b_uint8])
+    rgb_img = Image.fromarray(rgb_arr, mode="RGB")
+    
+    # Upscale smoothly if raster window is small
+    target_dim = max(256, max(min_cols, min_rows))
+    if min_cols < target_dim or min_rows < target_dim:
+        rgb_img = rgb_img.resize((target_dim, target_dim), Image.Resampling.BILINEAR)
+
+    # 2. Continuous False-Color NDVI Heatmap (RGBA with alpha transparency)
+    denom = nir + red + 1e-6
+    ndvi = np.clip((nir - red) / denom, -1.0, 1.0)
+    
+    stops = [-0.2, 0.1, 0.35, 0.6, 0.85]
+    colors = [
+        [30, 80, 200],    # Deep Navy/Blue (Water)
+        [210, 180, 130],  # Tan/Sand (Bare Soil / Rock)
+        [230, 210, 60],   # Yellow/Olive (Sparse Vegetation)
+        [70, 180, 60],    # Vibrant Green (Moderate Vegetation)
+        [15, 110, 30]     # Rich Emerald (Dense Canopy)
+    ]
+    ndvi_r = np.interp(ndvi, stops, [c[0] for c in colors]).astype(np.uint8)
+    ndvi_g = np.interp(ndvi, stops, [c[1] for c in colors]).astype(np.uint8)
+    ndvi_b = np.interp(ndvi, stops, [c[2] for c in colors]).astype(np.uint8)
+    ndvi_a = np.full_like(ndvi_r, 220, dtype=np.uint8)
+    
+    ndvi_rgba = np.dstack([ndvi_r, ndvi_g, ndvi_b, ndvi_a])
+    ndvi_img = Image.fromarray(ndvi_rgba, mode="RGBA")
+    if min_cols < target_dim or min_rows < target_dim:
+        ndvi_img = ndvi_img.resize((target_dim, target_dim), Image.Resampling.BILINEAR)
+
+    # Image bounds in Leaflet [[South, West], [North, East]] order
+    # bbox is [min_lon, min_lat, max_lon, max_lat]
+    image_bounds = [
+        [float(bbox[1]), float(bbox[0])],
+        [float(bbox[3]), float(bbox[2])]
+    ]
+
+    return {
+        "rgb_image": encode_pil_png_data_url(rgb_img),
+        "ndvi_image": encode_pil_png_data_url(ndvi_img),
+        "image_bounds": image_bounds
+    }
+

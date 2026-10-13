@@ -16,7 +16,12 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from shapely.geometry import shape
 from backend.services.satellite import fetch_sentinel2_data
-from backend.services.engine import run_ml_land_cover, generate_geological_interpretation, get_regional_context
+from backend.services.engine import (
+    run_ml_land_cover,
+    generate_geological_interpretation,
+    get_regional_context,
+    generate_imagery_overlays
+)
 from backend.services.literature import fetch_regional_literature
 
 app = FastAPI(title="GeoSentinel AI API", description="AI-powered Geological & Remote Sensing Intelligence Platform")
@@ -45,6 +50,9 @@ class AnalysisResponse(BaseModel):
     satellite_info: Dict[str, Any]
     cloud_warning: bool = False
     literature: List[ResearchPaper] = []
+    rgb_image: Optional[str] = None
+    ndvi_image: Optional[str] = None
+    image_bounds: Optional[List[List[float]]] = None
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_aoi(request: AnalysisRequest):
@@ -86,6 +94,9 @@ async def analyze_aoi(request: AnalysisRequest):
     papers_data = fetch_regional_literature(regional_context, limit=4)
     literature = [ResearchPaper(**p) for p in papers_data]
     
+    # 6. Generate True-Color RGB and False-Color NDVI raster overlays
+    overlays = generate_imagery_overlays(sat_data, effective_bbox)
+    
     cloud_cover = float(sat_data.get("cloud_cover", 0.0))
     cloud_warning = cloud_cover > 30.0
     client_sat_info = {k: v for k, v in sat_data.items() if k != "bands"}
@@ -96,7 +107,10 @@ async def analyze_aoi(request: AnalysisRequest):
         aoi_size_km2=aoi_size_km2,
         satellite_info=client_sat_info,
         cloud_warning=cloud_warning,
-        literature=literature
+        literature=literature,
+        rgb_image=overlays.get("rgb_image"),
+        ndvi_image=overlays.get("ndvi_image"),
+        image_bounds=overlays.get("image_bounds")
     )
 
 # Serve the static frontend files directly

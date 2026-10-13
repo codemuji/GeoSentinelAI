@@ -1,20 +1,29 @@
-// Initialize Leaflet Map centered on a default area (e.g. Himalayas / Tawang region)
+// Initialize Leaflet Map centered on default area without Leaflet watermark
 const map = L.map('map', {
-  zoomControl: false
+  zoomControl: false,
+  attributionControl: false
 }).setView([27.585, 91.859], 9);
+
+// Live UTC Telemetry Clock
+function updateUtcClock() {
+  const clock = document.getElementById('utc-clock');
+  if (clock) {
+    const now = new Date();
+    clock.textContent = `UTC ${now.toISOString().substring(11, 19)}Z`;
+  }
+}
+setInterval(updateUtcClock, 1000);
+updateUtcClock();
 
 // Define Basemaps
 const basemaps = {
   dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     maxZoom: 19
   }),
-  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '&copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}', {
     maxZoom: 19
   }),
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     maxZoom: 19
   })
 };
@@ -30,11 +39,13 @@ document.getElementById('basemap-select').addEventListener('change', (e) => {
   currentBasemap.addTo(map);
 });
 
-// Live Mouse Coordinate Readout (WGS84 Lat/Lng)
+// Live Tactical Reticle Coordinate Readout (WGS84 Lat/Lng)
 map.on('mousemove', (e) => {
   const { lat, lng } = e.latlng;
+  const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`;
+  const lngStr = `${Math.abs(lng).toFixed(4)}°${lng >= 0 ? 'E' : 'W'}`;
   document.getElementById('mouse-coords').textContent =
-    `Cursor Coordinates: ${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
+    `RETICLE // ${latStr} · ${lngStr} | GRID: WGS84`;
 });
 
 // Add zoom controls to bottom left
@@ -66,9 +77,124 @@ const drawControl = new L.Control.Draw({
 map.addControl(drawControl);
 
 let activeLayer = null;
+let rgbOverlayLayer = null;
+let ndviOverlayLayer = null;
+let currentRasterMode = 'rgb';
+let currentOpacity = 0.85;
+
+function clearRasterOverlays() {
+  if (rgbOverlayLayer && map.hasLayer(rgbOverlayLayer)) map.removeLayer(rgbOverlayLayer);
+  if (ndviOverlayLayer && map.hasLayer(ndviOverlayLayer)) map.removeLayer(ndviOverlayLayer);
+  rgbOverlayLayer = null;
+  ndviOverlayLayer = null;
+  const toolbar = document.getElementById('imagery-toolbar');
+  if (toolbar) toolbar.style.display = 'none';
+  const card = document.getElementById('imagery-card');
+  if (card) card.style.display = 'none';
+}
+
+function setRasterDisplayMode(mode) {
+  currentRasterMode = mode;
+  document.querySelectorAll('.layer-toggle-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.btn-chip').forEach(btn => btn.classList.remove('active'));
+
+  if (rgbOverlayLayer && map.hasLayer(rgbOverlayLayer)) map.removeLayer(rgbOverlayLayer);
+  if (ndviOverlayLayer && map.hasLayer(ndviOverlayLayer)) map.removeLayer(ndviOverlayLayer);
+
+  const previewImg = document.getElementById('imagery-preview-img');
+  const modeTag = document.getElementById('imagery-mode-tag');
+
+  if (mode === 'rgb' && rgbOverlayLayer && latestAnalysisData?.rgb_image) {
+    rgbOverlayLayer.addTo(map);
+    rgbOverlayLayer.setOpacity(currentOpacity);
+    document.getElementById('layer-rgb-btn')?.classList.add('active');
+    document.getElementById('preview-rgb-btn')?.classList.add('active');
+    if (previewImg) previewImg.src = latestAnalysisData.rgb_image;
+    if (modeTag) modeTag.textContent = 'True Color (RGB)';
+    if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.05, weight: 2 });
+  } else if (mode === 'ndvi' && ndviOverlayLayer && latestAnalysisData?.ndvi_image) {
+    ndviOverlayLayer.addTo(map);
+    ndviOverlayLayer.setOpacity(currentOpacity);
+    document.getElementById('layer-ndvi-btn')?.classList.add('active');
+    document.getElementById('preview-ndvi-btn')?.classList.add('active');
+    if (previewImg) previewImg.src = latestAnalysisData.ndvi_image;
+    if (modeTag) modeTag.textContent = 'False Color NDVI Heatmap';
+    if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.05, weight: 2 });
+  } else {
+    document.getElementById('layer-poly-btn')?.classList.add('active');
+    if (activeLayer && activeLayer.setStyle) activeLayer.setStyle({ fillOpacity: 0.45, weight: 3 });
+  }
+}
+
+function setupRasterOverlays(data) {
+  clearRasterOverlays();
+  if (!data.image_bounds) return;
+
+  const bounds = L.latLngBounds(data.image_bounds);
+  if (data.rgb_image) {
+    rgbOverlayLayer = L.imageOverlay(data.rgb_image, bounds, { opacity: currentOpacity });
+  }
+  if (data.ndvi_image) {
+    ndviOverlayLayer = L.imageOverlay(data.ndvi_image, bounds, { opacity: currentOpacity });
+  }
+
+  const toolbar = document.getElementById('imagery-toolbar');
+  if (toolbar) toolbar.style.display = 'flex';
+
+  const card = document.getElementById('imagery-card');
+  if (card && (data.rgb_image || data.ndvi_image)) {
+    card.style.display = 'block';
+    const previewImg = document.getElementById('imagery-preview-img');
+    if (previewImg) previewImg.src = data.rgb_image || data.ndvi_image;
+    const metaDate = document.getElementById('imagery-meta-date');
+    if (metaDate) metaDate.textContent = `Date: ${data.satellite_info?.scene_date || '--'}`;
+  }
+
+  setRasterDisplayMode('rgb');
+}
+
+function runStepperAnimation() {
+  const stepper = document.getElementById('pipeline-stepper');
+  if (!stepper) return null;
+  stepper.style.display = 'flex';
+  const steps = [
+    document.getElementById('step-1'),
+    document.getElementById('step-2'),
+    document.getElementById('step-3'),
+    document.getElementById('step-4')
+  ];
+  steps.forEach(s => { if (s) s.className = 'step pending'; });
+  if (steps[0]) steps[0].className = 'step active';
+
+  let currentStep = 0;
+  const interval = setInterval(() => {
+    if (currentStep < steps.length) {
+      if (steps[currentStep]) steps[currentStep].className = 'step completed';
+      currentStep++;
+      if (currentStep < steps.length && steps[currentStep]) {
+        steps[currentStep].className = 'step active';
+      }
+    }
+  }, 700);
+
+  return {
+    finish: () => {
+      clearInterval(interval);
+      steps.forEach(s => { if (s) s.className = 'step completed'; });
+      setTimeout(() => {
+        stepper.style.display = 'none';
+      }, 400);
+    },
+    fail: () => {
+      clearInterval(interval);
+      stepper.style.display = 'none';
+    }
+  };
+}
 
 // Handle AOI Creation
 map.on(L.Draw.Event.CREATED, function (e) {
+  clearRasterOverlays();
   drawnItems.clearLayers();
   activeLayer = e.layer;
   drawnItems.addLayer(activeLayer);
@@ -82,7 +208,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   document.getElementById('coord-display').textContent = `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
   document.getElementById('bbox-display').textContent = `${bounds.getSouthWest().lat.toFixed(2)},${bounds.getSouthWest().lng.toFixed(2)} to ${bounds.getNorthEast().lat.toFixed(2)},${bounds.getNorthEast().lng.toFixed(2)}`;
   document.getElementById('area-display').textContent = `${areaSqKm} sq km`;
-  document.getElementById('aoi-status').textContent = 'AOI Ready';
+  document.getElementById('aoi-status').textContent = 'AOI LOCKED // READY';
   document.getElementById('aoi-status').style.color = 'var(--accent)';
 
   document.getElementById('analyze-btn').disabled = false;
@@ -93,10 +219,11 @@ let latestAnalysisData = null;
 map.on(L.Draw.Event.DELETED, function () {
   activeLayer = null;
   latestAnalysisData = null;
+  clearRasterOverlays();
   document.getElementById('coord-display').textContent = '--';
   document.getElementById('bbox-display').textContent = '--';
   document.getElementById('area-display').textContent = '-- sq km';
-  document.getElementById('aoi-status').textContent = 'No AOI Selected';
+  document.getElementById('aoi-status').textContent = 'NO AOI SELECTED';
   document.getElementById('aoi-status').style.color = 'var(--text-secondary)';
   document.getElementById('analyze-btn').disabled = true;
   document.getElementById('report-btn').disabled = true;
@@ -174,16 +301,36 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeReportModal();
 });
 
+// Wire raster toolbar and viewer controls
+document.getElementById('layer-rgb-btn')?.addEventListener('click', () => setRasterDisplayMode('rgb'));
+document.getElementById('layer-ndvi-btn')?.addEventListener('click', () => setRasterDisplayMode('ndvi'));
+document.getElementById('layer-poly-btn')?.addEventListener('click', () => setRasterDisplayMode('thematic'));
+document.getElementById('preview-rgb-btn')?.addEventListener('click', () => setRasterDisplayMode('rgb'));
+document.getElementById('preview-ndvi-btn')?.addEventListener('click', () => setRasterDisplayMode('ndvi'));
+
+const opacityInput = document.getElementById('layer-opacity');
+if (opacityInput) {
+  opacityInput.addEventListener('input', (e) => {
+    currentOpacity = parseFloat(e.target.value) / 100.0;
+    const opVal = document.getElementById('opacity-val');
+    if (opVal) opVal.textContent = `${e.target.value}%`;
+    if (rgbOverlayLayer) rgbOverlayLayer.setOpacity(currentOpacity);
+    if (ndviOverlayLayer) ndviOverlayLayer.setOpacity(currentOpacity);
+  });
+}
+
 // Analyze button handler - calls Python FastAPI endpoint
 document.getElementById('analyze-btn').addEventListener('click', async () => {
   if (!activeLayer) return;
 
   const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span> Analyzing Imagery...';
+  btn.innerHTML = '<span>⌖</span> INGESTING TELEMETRY...';
 
   const geojson = activeLayer.toGeoJSON();
   const date = document.getElementById('sat-date').value;
+
+  const stepper = runStepperAnimation();
 
   try {
     const res = await fetch('/api/analyze', {
@@ -199,17 +346,20 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
 
     const data = await res.json();
     latestAnalysisData = data;
+    stepper?.finish();
     renderResults(data);
+    setupRasterOverlays(data);
 
     document.getElementById('report-btn').disabled = false;
     const headerBtn = document.getElementById('header-report-btn');
     if (headerBtn) headerBtn.style.display = 'inline-block';
   } catch (err) {
+    stepper?.fail();
     console.error('Analysis failed:', err);
     alert(`Analysis failed: ${err.message || 'Make sure the Python server is running!'}`);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span>⚡</span> Analyze AOI';
+    btn.innerHTML = '<span class="btn-icon">⌖</span> ANALYZE AOI';
   }
 });
 
@@ -379,6 +529,24 @@ function populateReportModal(data) {
   }).join('') : '<p class="placeholder-text">No indexed geological papers found for this sector.</p>';
 
   const reportBody = document.getElementById('report-body');
+  const imageryHtml = data.rgb_image ? `
+    <div class="report-section">
+      <h3>2. Earth Observation Imagery (10m Resolution)</h3>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem;">True Color Composite (RGB)</div>
+          <img src="${data.rgb_image}" style="width: 100%; max-height: 190px; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-border);" alt="True Color Satellite Imagery" />
+        </div>
+        ${data.ndvi_image ? `
+        <div style="flex: 1; min-width: 220px;">
+          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem;">Multispectral NDVI False-Color Heatmap</div>
+          <img src="${data.ndvi_image}" style="width: 100%; max-height: 190px; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-border);" alt="NDVI Heatmap" />
+        </div>
+        ` : ''}
+      </div>
+    </div>
+  ` : '';
+
   if (reportBody) {
     reportBody.innerHTML = `
       <div class="report-section">
@@ -395,8 +563,10 @@ function populateReportModal(data) {
         </div>
       </div>
 
+      ${imageryHtml}
+
       <div class="report-section">
-        <h3>2. Biophysical Land Cover Distribution</h3>
+        <h3>3. Biophysical Land Cover Distribution</h3>
         <div class="report-distribution-bar">
           ${distBars}
         </div>
@@ -406,12 +576,12 @@ function populateReportModal(data) {
       </div>
 
       <div class="report-section">
-        <h3>3. Geomorphological & Structural Landscape Assessment</h3>
+        <h3>4. Geomorphological & Structural Landscape Assessment</h3>
         ${interpHtml}
       </div>
 
       <div class="report-section">
-        <h3>4. Ground-Truth Academic Research & Field Surveys (OpenAlex)</h3>
+        <h3>5. Ground-Truth Academic Research & Field Surveys (OpenAlex)</h3>
         ${litHtml}
       </div>
 

@@ -56,3 +56,23 @@ def test_frontend_contains_report_modal():
     assert ".modal-overlay" in css
     assert "body.modal-open" in css
 
+def test_frontend_contains_imagery_viewer_and_stepper():
+    """Verifies that index.html, app.js, and style.css support the imagery viewer and progressive stepper."""
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    assert "imagery-toolbar" in html
+    assert "pipeline-stepper" in html
+    assert "imagery-card" in html
+
+    with open("frontend/app.js", "r", encoding="utf-8") as f:
+        js = f.read()
+    assert "setupRasterOverlays" in js
+    assert "setRasterDisplayMode" in js
+    assert "runStepperAnimation" in js
+
+    with open("frontend/style.css", "r", encoding="utf-8") as f:
+        css = f.read()
+    assert ".map-imagery-toolbar" in css
+    assert ".pipeline-stepper-overlay" in css
+    assert ".imagery-card" in css
+

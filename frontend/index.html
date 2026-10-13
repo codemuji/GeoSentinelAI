@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GeoSentinel AI | Geological & Remote Sensing Intelligence</title>
-  <!-- Google Fonts: Inter & Outfit -->
+  <title>GeoSentinel AI | Tactical Earth Observation Intelligence</title>
+  <!-- Google Fonts: Inter, Space Grotesk & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet Draw CSS -->
@@ -17,21 +17,30 @@
 </head>
 <body class="dark-mode">
   <div id="app-container">
-    <!-- Header / Navigation Bar -->
+    <!-- Tactical Command Header -->
     <header class="glass-header">
       <div class="brand">
-        <div class="logo-icon">🌍</div>
+        <div class="logo-radar">
+          <div class="radar-sweep-mini"></div>
+          <span class="radar-dot"></span>
+        </div>
         <div class="brand-text">
-          <h1>GeoSentinel <span>AI</span></h1>
-          <p>Earth Observation & Geological Intelligence</p>
+          <h1>GEOSENTINEL <span class="brand-sub">AI // ISR-01</span></h1>
+          <p>EARTH OBSERVATION &amp; GEOMORPHOLOGICAL INTELLIGENCE</p>
         </div>
       </div>
       <div class="search-bar">
-        <input type="text" id="location-input" placeholder="Search location (e.g. Tawang, Himalayas, Ziro Valley)..." />
-        <button id="search-btn" class="btn-secondary">Search</button>
+        <div class="search-input-wrap">
+          <span class="search-icon-glyph">⌖</span>
+          <input type="text" id="location-input" placeholder="SEARCH GRID TARGET (e.g. Tawang, Himalayas, Ziro Valley)..." />
+        </div>
+        <button id="search-btn" class="btn-secondary">TARGET SEARCH</button>
       </div>
-      <div class="header-actions">
-        <div class="status-badge live">System Ready</div>
+      <div class="header-telemetry">
+        <div class="telemetry-chip"><span class="chip-label">SAT</span> <span class="chip-val">S2A/L2A BOA</span></div>
+        <div class="telemetry-chip"><span class="chip-label">CATALOG</span> <span class="chip-val">PC-STAC</span></div>
+        <div class="telemetry-chip"><span class="chip-label">TIME</span> <span id="utc-clock" class="chip-val mono">UTC --:--:--</span></div>
+        <div class="status-badge live"><span class="pulse-indicator"></span>ONLINE</div>
       </div>
     </header>
 
@@ -40,83 +49,151 @@
       <!-- Left Map Pane -->
       <section class="map-section">
         <div id="map"></div>
+        
+        <!-- Tactical Viewport HUD Reticles -->
+        <div class="map-hud-brackets" pointer-events="none">
+          <div class="hud-corner top-left"></div>
+          <div class="hud-corner top-right"></div>
+          <div class="hud-corner bottom-left"></div>
+          <div class="hud-corner bottom-right"></div>
+          <div class="hud-grid-crosshair"></div>
+        </div>
+
+        <!-- Floating Raster Imagery Toolbar -->
+        <div class="map-imagery-toolbar" id="imagery-toolbar" style="display: none;">
+          <div class="imagery-mode-group">
+            <span class="toolbar-label">RASTER FEED</span>
+            <button id="layer-rgb-btn" class="layer-toggle-btn active" title="Sentinel-2 True Color (RGB)"><span class="layer-dot rgb"></span> TRUE COLOR</button>
+            <button id="layer-ndvi-btn" class="layer-toggle-btn" title="False Color NDVI Heatmap"><span class="layer-dot ndvi"></span> NDVI HEATMAP</button>
+            <button id="layer-poly-btn" class="layer-toggle-btn" title="Thematic Land Cover Vector"><span class="layer-dot vector"></span> THEMATIC</button>
+          </div>
+          <div class="imagery-opacity-group">
+            <span class="toolbar-label">OPACITY</span>
+            <input type="range" id="layer-opacity" min="0" max="100" value="85" />
+            <span id="opacity-val">85%</span>
+          </div>
+        </div>
+
+        <!-- Progressive Pipeline Stepper HUD -->
+        <div id="pipeline-stepper" class="pipeline-stepper-overlay" style="display: none;">
+          <div class="stepper-card">
+            <div class="stepper-corner-tl"></div>
+            <div class="stepper-corner-br"></div>
+            <div class="stepper-header">
+              <div class="radar-pulse"></div>
+              <div>
+                <div class="stepper-sys-tag">PIPELINE EXECUTION // LIVE</div>
+                <h3>Streaming Earth Observation Telemetry</h3>
+              </div>
+            </div>
+            <ul class="stepper-steps">
+              <li id="step-1" class="step active"><span class="step-num">[01]</span> <span class="step-text">Querying Planetary Computer STAC Catalog</span></li>
+              <li id="step-2" class="step pending"><span class="step-num">[02]</span> <span class="step-text">Concurrent Band Streaming (B02, B03, B04, B08, B11)</span></li>
+              <li id="step-3" class="step pending"><span class="step-num">[03]</span> <span class="step-text">Multispectral Index Processing (NDVI / NDWI / NDBI)</span></li>
+              <li id="step-4" class="step pending"><span class="step-num">[04]</span> <span class="step-text">AI Geomorphology &amp; OpenAlex Research Synthesis</span></li>
+            </ul>
+          </div>
+        </div>
+
         <div class="map-overlay-controls">
           <div class="basemap-selector">
-            <span>Basemap:</span>
+            <span>BASEMAP:</span>
             <select id="basemap-select">
-              <option value="dark">CartoDB Dark (Default)</option>
+              <option value="dark">CartoDB Dark (Tactical)</option>
               <option value="satellite">ESRI World Satellite</option>
               <option value="voyager">CartoDB Voyager (Streets)</option>
             </select>
           </div>
           <label class="date-selector">
-            <span>Satellite Date:</span>
+            <span>DATE:</span>
             <input type="date" id="sat-date" value="2024-06-15" />
           </label>
           <button id="analyze-btn" class="btn-primary" disabled>
-            <span class="btn-icon">⚡</span> Analyze AOI
+            <span class="btn-icon">⌖</span> ANALYZE AOI
           </button>
         </div>
         <div class="mouse-coords-bar" id="mouse-coords">
-          Cursor Coordinates: Move mouse over map...
+          RETICLE // INITIALIZING GRID...
         </div>
       </section>
 
       <!-- Right Intelligence Dashboard Pane -->
       <aside class="dashboard-panel glass-panel">
         <div class="panel-header">
-          <h2>Intelligence Dashboard</h2>
+          <h2>MISSION INTELLIGENCE DASHBOARD</h2>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button id="header-report-btn" class="badge-btn" style="display: none;">📄 View Report</button>
-            <span class="badge warning-badge" id="cloud-warning-badge" style="display: none;">⚠️ Cloud Warning</span>
-            <span class="badge" id="aoi-status">No AOI Selected</span>
+            <button id="header-report-btn" class="badge-btn" style="display: none;">[ VIEW REPORT ]</button>
+            <span class="badge warning-badge" id="cloud-warning-badge" style="display: none;">! CLOUD WARNING</span>
+            <span class="badge" id="aoi-status">NO AOI SELECTED</span>
           </div>
         </div>
 
         <div class="panel-content" id="panel-content">
+          <!-- Satellite Imagery Viewer Card -->
+          <div class="card imagery-card" id="imagery-card" style="display: none;">
+            <div class="card-title-row">
+              <h3>// SATELLITE IMAGERY VIEWER</h3>
+              <div class="imagery-badges">
+                <span class="imagery-chip">SENTINEL-2 L2A</span>
+                <span class="imagery-chip">10M RESOLUTION</span>
+              </div>
+            </div>
+            <div class="imagery-preview-frame">
+              <img id="imagery-preview-img" src="" alt="Satellite AOI Preview" />
+              <div class="imagery-preview-overlay">
+                <span id="imagery-mode-tag">TRUE COLOR COMPOSITE (RGB)</span>
+              </div>
+            </div>
+            <div class="imagery-card-controls">
+              <button id="preview-rgb-btn" class="btn-chip active">TRUE COLOR (RGB)</button>
+              <button id="preview-ndvi-btn" class="btn-chip">NDVI HEATMAP</button>
+              <span class="imagery-meta-hint mono" id="imagery-meta-date">DATE: --</span>
+            </div>
+          </div>
+
           <!-- Area Information -->
           <div class="card info-card">
-            <h3>Area Information</h3>
-            <div class="info-grid">
+            <h3>// AREA SPECIFICATION</h3>
+            <div class="info-grid mono">
               <div><label>Coordinates:</label> <span id="coord-display">--</span></div>
               <div><label>Bounding Box:</label> <span id="bbox-display">--</span></div>
-              <div><label>AOI Area:</label> <span id="area-display">-- sq km</span></div>
-              <div><label>Source:</label> <span id="source-display">Sentinel-2 (L2A)</span></div>
+              <div><label>AOI Surface Area:</label> <span id="area-display">-- sq km</span></div>
+              <div><label>Satellite Source:</label> <span id="source-display">Sentinel-2 (L2A)</span></div>
               <div><label>Scene ID:</label> <span id="scene-display" style="color:var(--accent)">--</span></div>
-              <div><label>Capture Date:</label> <span id="capture-display">--</span></div>
+              <div><label>Acquisition Date:</label> <span id="capture-display">--</span></div>
               <div><label>Cloud Cover:</label> <span id="cloud-display">--</span></div>
-              <div><label>Mean NDVI:</label> <span id="ndvi-display">--</span></div>
+              <div><label>Mean Spectral NDVI:</label> <span id="ndvi-display">--</span></div>
             </div>
           </div>
 
           <!-- Land Cover Stats -->
           <div class="card stats-card">
-            <h3>Land Cover Classification</h3>
+            <h3>// BIOPHYSICAL CLASSIFICATION</h3>
             <div id="stats-container" class="stats-list">
-              <p class="placeholder-text">Draw an Area of Interest (AOI) on the map and click Analyze to generate classification statistics.</p>
+              <p class="placeholder-text">Draw an Area of Interest (AOI) on the map and click Analyze AOI to generate deterministic spectral classification statistics.</p>
             </div>
           </div>
 
           <!-- Geological Interpretation -->
           <div class="card geology-card">
-            <h3>Geological Interpretation</h3>
+            <h3>// GEOMORPHOLOGICAL ASSESSMENT</h3>
             <div id="geology-container">
-              <p class="placeholder-text">AI-assisted geological landscape interpretation will appear here after analysis.</p>
+              <p class="placeholder-text">AI-assisted geological landscape interpretation will synthesize here upon analysis.</p>
             </div>
           </div>
 
           <!-- Ground-Truth Geological Literature -->
           <div class="card literature-card">
-            <h3>Regional Geological Research (OpenAlex)</h3>
+            <h3>// GROUND-TRUTH LITERATURE (OPENALEX)</h3>
             <div id="literature-container">
-              <p class="placeholder-text">Peer-reviewed geological surveys and literature will appear here after analysis.</p>
+              <p class="placeholder-text">Peer-reviewed geological surveys and literature will index here after analysis.</p>
             </div>
           </div>
 
           <!-- Actions -->
           <div class="actions-group">
             <button id="report-btn" class="btn-outline" disabled>
-              📄 View & Download PDF Report
+              [ EXPORT TACTICAL BRIEFING (PDF) ]
             </button>
           </div>
         </div>
@@ -129,12 +206,12 @@
     <div class="modal-card">
       <div class="modal-header">
         <div class="report-title-group">
-          <h2>🌍 GeoSentinel AI — Tactical Intelligence Report</h2>
-          <span class="report-timestamp" id="report-timestamp">--</span>
+          <h2>GEOSENTINEL // TACTICAL INTELLIGENCE BRIEFING</h2>
+          <span class="report-timestamp mono" id="report-timestamp">--</span>
         </div>
         <div class="modal-actions">
-          <button id="modal-print-btn" class="btn-primary">🖨️ Print / Save PDF</button>
-          <button id="modal-close-btn" class="btn-secondary">✕ Close</button>
+          <button id="modal-print-btn" class="btn-primary">[ PRINT / SAVE PDF ]</button>
+          <button id="modal-close-btn" class="btn-secondary">[ CLOSE ]</button>
         </div>
       </div>
       <div class="modal-body" id="report-body">

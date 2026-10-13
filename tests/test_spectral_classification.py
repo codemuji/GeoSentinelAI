@@ -4,7 +4,8 @@ from backend.services.engine import (
     compute_spectral_indices,
     classify_pixels,
     calculate_land_cover_percentages,
-    run_ml_land_cover
+    run_ml_land_cover,
+    generate_imagery_overlays
 )
 
 def test_compute_spectral_indices():
@@ -57,3 +58,20 @@ def test_classify_urban_fixture(synthetic_spectral_fixtures):
     land_cover = run_ml_land_cover(sat_data)
     assert land_cover["Urban"] > 80.0
     assert sum(land_cover.values()) == 100.0
+
+def test_generate_imagery_overlays(synthetic_spectral_fixtures):
+    """Verifies generation of RGB and NDVI PNG data URLs and Leaflet image bounds."""
+    forest_bands = synthetic_spectral_fixtures["forest"]
+    sat_data = {"bands": forest_bands, "ndvi_mean": 0.85}
+    bbox = [91.85, 27.58, 91.87, 27.60]
+    
+    overlays = generate_imagery_overlays(sat_data, bbox)
+    assert "rgb_image" in overlays
+    assert "ndvi_image" in overlays
+    assert "image_bounds" in overlays
+    
+    assert overlays["rgb_image"].startswith("data:image/png;base64,")
+    assert overlays["ndvi_image"].startswith("data:image/png;base64,")
+    # Leaflet bounds order: [[min_lat, min_lon], [max_lat, max_lon]]
+    assert overlays["image_bounds"] == [[27.58, 91.85], [27.60, 91.87]]
+

@@ -42,12 +42,12 @@ def stream_sentinel2_bands_concurrently(
     item_assets: Dict[str, Any],
     proj_bbox: List[float]
 ) -> Dict[str, np.ndarray]:
-    """Streams Green (B03), Red (B04), NIR (B08), and SWIR (B11) concurrently via thread pool."""
-    band_keys = {"B03": "B03", "B04": "B04", "B08": "B08", "B11": "B11"}
+    """Streams Blue (B02), Green (B03), Red (B04), NIR (B08), and SWIR (B11) concurrently via thread pool."""
+    band_keys = {"B02": "B02", "B03": "B03", "B04": "B04", "B08": "B08", "B11": "B11"}
     urls = {band: item_assets[key].href for band, key in band_keys.items() if key in item_assets}
     
     bands: Dict[str, np.ndarray] = {}
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(read_band_window, url, proj_bbox): band for band, url in urls.items()}
         for future in as_completed(futures):
             band = futures[future]
