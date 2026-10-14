@@ -11,6 +11,7 @@ __pycache__/
 *.pyd
 .agents
 docs
+.wrangler/
 # Virtual Environments & Package Directories
 venv/
 .venv/
