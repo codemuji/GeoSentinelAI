@@ -37,6 +37,7 @@
         <button id="search-btn" class="btn-secondary">TARGET SEARCH</button>
       </div>
       <div class="header-telemetry">
+        <div class="security-classification-tag">// PALANTIR C2 // REL TO USA, FVEY // S2-BOA //</div>
         <div class="telemetry-chip"><span class="chip-label">SAT</span> <span class="chip-val">S2A/L2A BOA</span></div>
         <div class="telemetry-chip"><span class="chip-label">CATALOG</span> <span class="chip-val">PC-STAC</span></div>
         <div class="telemetry-chip"><span class="chip-label">TIME</span> <span id="utc-clock" class="chip-val mono">UTC --:--:--</span></div>
@@ -46,7 +47,7 @@
 
     <!-- Main Workspace -->
     <main class="workspace">
-      <!-- Left Map Pane -->
+      <!-- Left Map Pane (Full Bleed C2 Geospatial Canvas) -->
       <section class="map-section">
         <div id="map"></div>
         
@@ -128,14 +129,24 @@
         </div>
       </section>
 
-      <!-- Right Intelligence Dashboard Pane -->
-      <aside class="dashboard-panel glass-panel">
+      <!-- Right Intelligence Dashboard Pane (Collapsible Floating HUD Drawer) -->
+      <aside class="dashboard-panel glass-panel" id="dashboard-panel">
+        <!-- Floating Left-edge HUD Toggle Tab -->
+        <button id="hud-toggle-btn" class="hud-drawer-toggle" title="Toggle Intel HUD Drawer">
+          <span class="toggle-icon">◀</span>
+          <span class="toggle-text">INTEL HUD</span>
+        </button>
+
         <div class="panel-header">
-          <h2>MISSION INTELLIGENCE DASHBOARD</h2>
+          <div class="panel-header-title">
+            <h2>MISSION INTELLIGENCE DASHBOARD</h2>
+            <span class="panel-sub-tag">TACTICAL ISR STREAM</span>
+          </div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button id="header-report-btn" class="badge-btn" style="display: none;">[ VIEW REPORT ]</button>
             <span class="badge warning-badge" id="cloud-warning-badge" style="display: none;">! CLOUD WARNING</span>
             <span class="badge" id="aoi-status">NO AOI SELECTED</span>
+            <button id="hud-close-btn" class="hud-close-btn" title="Collapse HUD Panel">✕</button>
           </div>
         </div>
 

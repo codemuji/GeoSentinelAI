@@ -96,3 +96,24 @@ def test_frontend_contains_mariculture_and_fai_assets():
     assert ".mariculture-hotspots-strip" in css
     assert ".layer-dot.fai" in css
 
+def test_tactical_hud_drawer_and_aoi_popup():
+    """Verifies that index.html, style.css, and app.js support the Palantir C2 HUD drawer and tactical AOI hovering card."""
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    assert "hud-toggle-btn" in html
+    assert "hud-close-btn" in html
+    assert "PALANTIR C2" in html
+
+    with open("frontend/style.css", "r", encoding="utf-8") as f:
+        css = f.read()
+    assert ".dashboard-panel.collapsed" in css
+    assert ".hud-drawer-toggle" in css
+    assert ".tactical-aoi-popup" in css
+    assert ".tactical-hud-card" in css
+
+    with open("frontend/app.js", "r", encoding="utf-8") as f:
+        js = f.read()
+    assert "toggleIntelHud" in js
+    assert "expandIntelHud" in js
+    assert "tactical-aoi-popup" in js
+

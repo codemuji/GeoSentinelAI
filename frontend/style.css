@@ -184,6 +184,21 @@ body {
   gap: 0.65rem;
 }
 
+.security-classification-tag {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #ffaa00;
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.35);
+  padding: 0.22rem 0.55rem;
+  border-radius: 3px;
+  text-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
+  display: flex;
+  align-items: center;
+}
+
 .telemetry-chip {
   background: rgba(0, 240, 255, 0.04);
   border: 1px solid rgba(0, 240, 255, 0.18);
@@ -310,17 +325,22 @@ button {
   background: transparent;
 }
 
-/* Workspace Layout */
+/* Workspace Layout - Full Bleed C2 Tactical Interface */
 .workspace {
   display: flex;
   flex: 1;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 .map-section {
-  flex: 1;
-  position: relative;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
 #map {
@@ -363,15 +383,16 @@ button {
 
 .map-overlay-controls {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 55px;
+  left: 55px;
   z-index: 800;
   display: flex;
   align-items: center;
   gap: 0.85rem;
   background: var(--glass-bg);
   backdrop-filter: blur(14px);
-  padding: 0.5rem 0.9rem;
+  -webkit-backdrop-filter: blur(14px);
+  padding: 0.45rem 0.85rem;
   border-radius: 4px;
   border: 1px solid var(--glass-border);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -409,10 +430,11 @@ button {
 .mouse-coords-bar {
   position: absolute;
   bottom: 15px;
-  right: 15px;
+  left: 60px;
   z-index: 800;
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 0.35rem 0.75rem;
   border-radius: 3px;
   border: 1px solid var(--glass-border);
@@ -486,15 +508,16 @@ button {
 /* Floating Raster Imagery Toolbar */
 .map-imagery-toolbar {
   position: absolute;
-  top: 72px;
-  right: 15px;
+  top: 102px;
+  left: 55px;
   z-index: 800;
   display: flex;
   align-items: center;
   gap: 1.2rem;
   background: rgba(6, 9, 19, 0.92);
   backdrop-filter: blur(14px);
-  padding: 0.45rem 0.9rem;
+  -webkit-backdrop-filter: blur(14px);
+  padding: 0.45rem 0.85rem;
   border-radius: 4px;
   border: 1px solid rgba(0, 240, 255, 0.28);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
@@ -827,31 +850,131 @@ button {
   margin-left: auto;
 }
 
-/* Dashboard Panel */
+/* Dashboard Panel - Floating Glass C2 Tactical Drawer */
 .dashboard-panel {
-  width: 420px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--glass-border);
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  bottom: 15px;
+  width: 440px;
+  max-width: calc(100vw - 30px);
+  background: rgba(6, 11, 24, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
-  box-shadow: -5px 0 30px rgba(0, 0, 0, 0.6);
+  height: auto;
+  overflow: visible;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 240, 255, 0.08);
+  z-index: 850;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+
+.dashboard-panel.collapsed {
+  transform: translateX(calc(100% + 25px));
+}
+
+.hud-drawer-toggle {
+  position: absolute;
+  left: -38px;
+  top: 20px;
+  width: 38px;
+  height: 110px;
+  background: rgba(6, 11, 24, 0.96);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.6);
+  transition: all 0.25s ease;
+  z-index: 860;
+  padding: 0;
+}
+
+.hud-drawer-toggle:hover {
+  background: rgba(0, 240, 255, 0.15);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: -8px 0 25px rgba(0, 240, 255, 0.35);
+}
+
+.hud-drawer-toggle .toggle-icon {
+  font-size: 0.72rem;
+  transition: transform 0.3s ease;
+}
+
+.dashboard-panel.collapsed .hud-drawer-toggle .toggle-icon {
+  transform: rotate(180deg);
+}
+
+.hud-drawer-toggle .toggle-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
 }
 
 .panel-header {
-  padding: 1.1rem 1.4rem;
+  padding: 0.9rem 1.25rem;
   border-bottom: 1px solid var(--glass-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(10, 17, 36, 0.9);
+  background: rgba(8, 14, 30, 0.95);
+  border-radius: 6px 6px 0 0;
 }
 
-.panel-header h2 {
+.panel-header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.panel-header-title h2 {
   font-family: var(--font-heading);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   letter-spacing: 1.2px;
+  color: #fff;
+  margin: 0;
+}
+
+.panel-sub-tag {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--accent);
+  letter-spacing: 0.8px;
+}
+
+.hud-close-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.hud-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
   color: #fff;
 }
 
@@ -1264,6 +1387,220 @@ button {
   text-align: center;
   padding-top: 0.5rem;
   border-top: 1px solid var(--glass-border);
+}
+
+/* ==========================================================================
+   Tactical AOI Hovering Card (Palantir Defense C2 Reticle Callout)
+   ========================================================================== */
+.tactical-aoi-popup {
+  margin-bottom: 12px;
+}
+
+.tactical-aoi-popup .leaflet-popup-content-wrapper {
+  background: rgba(6, 12, 26, 0.95) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.45) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 240, 255, 0.2) !important;
+  padding: 0 !important;
+  color: var(--text-primary) !important;
+  overflow: hidden !important;
+}
+
+.tactical-aoi-popup .leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+  width: 320px !important;
+}
+
+.tactical-aoi-popup .leaflet-popup-tip-container {
+  overflow: visible !important;
+}
+
+.tactical-aoi-popup .leaflet-popup-tip {
+  background: rgba(6, 12, 26, 0.95) !important;
+  border: 1px solid rgba(0, 240, 255, 0.45) !important;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2) !important;
+}
+
+.tactical-aoi-popup .leaflet-popup-close-button {
+  color: var(--accent) !important;
+  font-family: var(--font-mono) !important;
+  top: 8px !important;
+  right: 10px !important;
+  font-size: 16px !important;
+  padding: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.tactical-aoi-popup .leaflet-popup-close-button:hover {
+  color: #fff !important;
+}
+
+.tactical-hud-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-card-header {
+  padding: 0.75rem 0.9rem;
+  background: rgba(10, 20, 42, 0.95);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hud-target-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-status-tag {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.hud-card-body {
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.hud-metric-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.hud-metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+.hud-metric-class {
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hud-metric-pct {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.hud-progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.hud-telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.6rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.55rem 0.65rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+.hud-tele-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hud-tele-label {
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  letter-spacing: 0.4px;
+}
+
+.hud-tele-val {
+  color: #fff;
+  font-weight: 600;
+}
+
+.text-accent { color: var(--accent) !important; }
+.text-emerald { color: #10b981 !important; }
+.text-cyan { color: #00f0ff !important; }
+
+.hud-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.2rem;
+}
+
+.hud-card-btn {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.hud-card-btn.primary {
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.hud-card-btn.primary:hover {
+  background: var(--accent);
+  color: #030712;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+.hud-card-btn.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-secondary);
+}
+
+.hud-card-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Dedicated Print Layout for PDF Report Generation */

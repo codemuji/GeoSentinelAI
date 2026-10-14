@@ -331,6 +331,36 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeReportModal();
 });
 
+// Tactical Intel HUD Drawer Controls (Collapsible Floating C2 Drawer)
+const hudPanel = document.getElementById('dashboard-panel');
+const hudToggleBtn = document.getElementById('hud-toggle-btn');
+const hudCloseBtn = document.getElementById('hud-close-btn');
+
+function toggleIntelHud() {
+  if (!hudPanel) return;
+  const isCollapsed = hudPanel.classList.toggle('collapsed');
+  document.body.classList.toggle('hud-collapsed', isCollapsed);
+}
+
+function expandIntelHud() {
+  if (!hudPanel) return;
+  hudPanel.classList.remove('collapsed');
+  document.body.classList.remove('hud-collapsed');
+}
+
+function collapseIntelHud() {
+  if (!hudPanel) return;
+  hudPanel.classList.add('collapsed');
+  document.body.classList.add('hud-collapsed');
+}
+
+window.expandIntelHud = expandIntelHud;
+window.collapseIntelHud = collapseIntelHud;
+window.toggleIntelHud = toggleIntelHud;
+
+if (hudToggleBtn) hudToggleBtn.addEventListener('click', toggleIntelHud);
+if (hudCloseBtn) hudCloseBtn.addEventListener('click', collapseIntelHud);
+
 // Wire raster toolbar and viewer controls
 document.getElementById('layer-rgb-btn')?.addEventListener('click', () => setRasterDisplayMode('rgb'));
 document.getElementById('layer-ndvi-btn')?.addEventListener('click', () => setRasterDisplayMode('ndvi'));
@@ -452,11 +482,63 @@ function renderResults(data) {
     'Urban': '#ef4444'
   };
 
-  // Thematic Styling for AOI on Map
+  // Thematic Styling & Tactical Palantir-Style Hovering Card for AOI on Map
   if (data.land_cover && Object.keys(data.land_cover).length > 0) {
     const dominantEntry = Object.entries(data.land_cover).sort((a, b) => b[1] - a[1])[0];
     const dominantClass = dominantEntry[0];
+    const dominantPct = dominantEntry[1];
     const dominantColor = colors[dominantClass] || '#00f0ff';
+
+    let maricultureSnippet = '';
+    if (data.mariculture && data.mariculture.is_coastal) {
+      const mcdaScore = data.mariculture.suitability_score || 0;
+      const tier = data.mariculture.feasibility_tier || 'OPTIMAL';
+      const co2Val = data.mariculture.co2_sequestered_t_annual;
+      const co2eRate = (co2Val !== undefined && co2Val !== null) ? Number(co2Val).toLocaleString() : '--';
+      maricultureSnippet = `
+        <div class="hud-tele-item"><span class="hud-tele-label">MARICULTURE MCDA</span><span class="hud-tele-val text-emerald">${mcdaScore}% [${tier}]</span></div>
+        <div class="hud-tele-item"><span class="hud-tele-label">BLUE CARBON MRV</span><span class="hud-tele-val text-cyan">${co2eRate} tCO2/yr</span></div>
+      `;
+    } else {
+      maricultureSnippet = `
+        <div class="hud-tele-item"><span class="hud-tele-label">SENSOR PLATFORM</span><span class="hud-tele-val">S2A MSI 10M</span></div>
+        <div class="hud-tele-item"><span class="hud-tele-label">CATALOG</span><span class="hud-tele-val">PC-L2A-BOA</span></div>
+      `;
+    }
+
+    const popupHtml = `
+      <div class="tactical-hud-card">
+        <div class="hud-card-header">
+          <div class="hud-target-tag"><span class="pulse-indicator"></span> TARGET // AOI-TAC-01</div>
+          <span class="hud-status-tag">LOCKED</span>
+        </div>
+        <div class="hud-card-body">
+          <div class="hud-metric-row">
+            <div class="hud-metric-header">
+              <span class="hud-metric-class">
+                <span class="hud-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dominantColor};box-shadow:0 0 8px ${dominantColor};"></span>
+                ${dominantClass.toUpperCase()}
+              </span>
+              <span class="hud-metric-pct">${dominantPct}% COVERAGE</span>
+            </div>
+            <div class="hud-progress-track">
+              <div class="hud-progress-fill" style="width:${dominantPct}%;background:${dominantColor};box-shadow:0 0 8px ${dominantColor};"></div>
+            </div>
+          </div>
+          <div class="hud-telemetry-grid">
+            <div class="hud-tele-item"><span class="hud-tele-label">SURFACE AREA</span><span class="hud-tele-val">${data.aoi_size_km2} sq km</span></div>
+            <div class="hud-tele-item"><span class="hud-tele-label">MEAN NDVI</span><span class="hud-tele-val text-accent">${data.satellite_info.ndvi_mean || '--'}</span></div>
+            <div class="hud-tele-item"><span class="hud-tele-label">SCENE ACQUIRED</span><span class="hud-tele-val">${data.satellite_info.scene_date || '--'}</span></div>
+            <div class="hud-tele-item"><span class="hud-tele-label">CLOUD COVER</span><span class="hud-tele-val">${data.satellite_info.cloud_cover || 0}%</span></div>
+            ${maricultureSnippet}
+          </div>
+          <div class="hud-card-actions">
+            <button class="hud-card-btn primary" onclick="expandIntelHud()">[ EXPAND INTEL HUD ▶ ]</button>
+            <button class="hud-card-btn secondary" onclick="document.getElementById('report-btn').click()">[ BRIEFING ↗ ]</button>
+          </div>
+        </div>
+      </div>
+    `;
 
     if (activeLayer && activeLayer.setStyle) {
       activeLayer.setStyle({
@@ -465,11 +547,15 @@ function renderResults(data) {
         fillOpacity: 0.45,
         weight: 3
       });
-      activeLayer.bindPopup(
-        `<b>Dominant Land Cover:</b> ${dominantClass} (${dominantEntry[1]}%)<br>` +
-        `<b>AOI Area:</b> ${data.aoi_size_km2} sq km<br>` +
-        `<b>Scene:</b> ${data.satellite_info.scene_id || 'Sentinel-2'}`
-      ).openPopup();
+      activeLayer.bindPopup(popupHtml, {
+        className: 'tactical-aoi-popup',
+        maxWidth: 340,
+        minWidth: 300,
+        closeButton: true,
+        autoPan: true,
+        autoPanPaddingTopLeft: [80, 160],
+        autoPanPaddingBottomRight: [480, 40]
+      }).openPopup();
     }
   }
 
