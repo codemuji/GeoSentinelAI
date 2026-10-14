@@ -3,6 +3,8 @@
 # 🌍 GeoSentinel AI
 ### AI-Powered Earth Observation & ISR Geomorphological Intelligence Platform
 
+[![Live Demo](https://img.shields.io/badge/LIVE%20DEMO-geosentinel--ai.pages.dev-00f0ff?style=for-the-badge&logo=cloudflare&logoColor=black)](https://geosentinel-ai.pages.dev)
+[![Deployment](https://img.shields.io/badge/Cloudflare%20Pages-Active-success?style=for-the-badge&logo=cloudflarepages&logoColor=white)](https://geosentinel-ai.pages.dev)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Sentinel--2](https://img.shields.io/badge/Satellite-Sentinel--2%20(L2A)-003366?style=for-the-badge&logo=esa&logoColor=white)](https://sentinel.esa.int/web/sentinel/missions/sentinel-2)
@@ -14,6 +16,8 @@
 <p align="center">
   <strong>An automated, multi-tiered Geospatial Intelligence (GEOINT) and Remote Sensing analytical engine that transforms live multi-spectral satellite imagery into actionable terrain classification and geomorphological intelligence.</strong>
 </p>
+
+### 🌐 Live Production Application: [https://geosentinel-ai.pages.dev](https://geosentinel-ai.pages.dev)
 
 </div>
 
@@ -146,7 +150,7 @@ graph TD
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/GeoSentinelAI.git
+git clone https://github.com/codemuji/GeoSentinelAI.git
 cd GeoSentinelAI
 ```
 
@@ -190,10 +194,14 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 6. Access the Dashboard
-Open your web browser and navigate to:
-👉 **`http://localhost:8000`**
+- **Local Development**: 👉 **`http://localhost:8000`** *(Swagger docs at `/docs`)*
+- **Live Production (Cloudflare Pages)**: 👉 **[https://geosentinel-ai.pages.dev](https://geosentinel-ai.pages.dev)**
 
-*(Interactive Swagger API Documentation is available at `http://localhost:8000/docs`)*
+### 7. Deploy to Cloudflare Pages (Production)
+The project includes a Cloudflare Edge remote sensing worker in `functions/api/analyze.js`. Deploy anytime using Wrangler:
+```bash
+npx wrangler pages deploy frontend --project-name=geosentinel-ai --branch=main
+```
 
 ---
 

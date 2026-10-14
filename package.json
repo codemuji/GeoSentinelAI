@@ -1,0 +1,26 @@
+{
+  "name": "geosentinel-ai",
+  "version": "1.0.0",
+  "description": "Tactical Earth Observation & ISR Geomorphological Intelligence Platform",
+  "homepage": "https://geosentinel-ai.pages.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codemuji/GeoSentinelAI.git"
+  },
+  "keywords": [
+    "geoint",
+    "remote-sensing",
+    "earth-observation",
+    "sentinel-2",
+    "mariculture",
+    "blue-carbon",
+    "palantir",
+    "fastapi",
+    "gis"
+  ],
+  "author": "codemuji",
+  "license": "MIT",
+  "scripts": {
+    "deploy": "wrangler pages deploy frontend --project-name=geosentinel-ai --branch=main"
+  }
+}
